@@ -94,7 +94,7 @@ public class TagDialog extends ExtendedDialog
 
    public TagDialog(String pluginDir, OsmPrimitive p_selection)
    {
-      super(Main.parent, tr("House Number Editor"), new String[] { tr("OK"), tr("Cancel") }, true);
+      super(Main.parent, tr("AMATOSMEditor"), new String[] { tr("OK"), tr("Cancel") }, true);
       this.pluginDir = pluginDir;
       this.selection = p_selection;
 
