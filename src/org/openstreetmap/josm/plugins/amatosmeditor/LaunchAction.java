@@ -23,7 +23,7 @@ public class LaunchAction extends JosmAction implements SelectionChangedListener
       super("AMATOSMEditor", 
             "amat-logo-32", 
             "Downloads from OSM and AMAT", 
-            Shortcut.registerShortcut("edit:amatosmeditor", "AMATOSMEditor", KeyEvent.VK_A, Shortcut.CTRL),
+            Shortcut.registerShortcut("edit:amatosmeditor", "AMATOSMEditor", KeyEvent.VK_A, Shortcut.CTRL_SHIFT),
             true);
 
       this.pluginDir = pluginDir;

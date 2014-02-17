@@ -7,12 +7,12 @@ import java.util.concurrent.Future;
 import javax.swing.JOptionPane;
 
 import org.openstreetmap.josm.Main;
-import org.openstreetmap.josm.actions.downloadtasks.DownloadOsmTask;
 import org.openstreetmap.josm.actions.downloadtasks.DownloadTask;
 import org.openstreetmap.josm.actions.downloadtasks.PostDownloadHandler;
 import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane;
+import org.openstreetmap.josm.gui.IconToggleButton;
 import org.openstreetmap.josm.gui.MainMenu;
 import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.MapView.EditLayerChangeListener;
@@ -23,7 +23,8 @@ import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.progress.PleaseWaitProgressMonitor;
 import org.openstreetmap.josm.plugins.Plugin;
 import org.openstreetmap.josm.plugins.PluginInformation;
-import org.openstreetmap.josm.tools.Utils;
+import org.openstreetmap.josm.plugins.amatosmeditor.actions.mapmode.AMATSelectAction;
+import org.openstreetmap.josm.plugins.amatosmeditor.downloadtasks.AMATDownloadOsmTask;
 
 public class AMATOSMEditorPlugin extends Plugin implements LayerChangeListener, EditLayerChangeListener {
    LaunchAction action;
@@ -36,7 +37,7 @@ public class AMATOSMEditorPlugin extends Plugin implements LayerChangeListener, 
    public AMATOSMEditorPlugin(PluginInformation info) {
       super(info);
       action = new LaunchAction(getPluginDir());
-      MainMenu.add(Main.main.menu.dataMenu, action, false,0);
+      MainMenu.add(Main.main.menu.dataMenu, action, false,0);      
    }
 
 	@Override
@@ -50,6 +51,8 @@ public class AMATOSMEditorPlugin extends Plugin implements LayerChangeListener, 
 		this.mapFrame = newFrame;
 		
 		if(this.mapFrame != null) {
+			this.mapFrame.addMapMode(new IconToggleButton(new AMATSelectAction(this.mapFrame)));
+			
 			this.mapFrame.mapView.addLayerChangeListener(this);
 			this.mapFrame.mapView.addEditLayerChangeListener(this, true);
 		}
