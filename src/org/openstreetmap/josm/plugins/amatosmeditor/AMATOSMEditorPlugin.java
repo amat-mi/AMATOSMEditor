@@ -25,6 +25,7 @@ import org.openstreetmap.josm.plugins.Plugin;
 import org.openstreetmap.josm.plugins.PluginInformation;
 import org.openstreetmap.josm.plugins.amatosmeditor.actions.mapmode.AMATSelectAction;
 import org.openstreetmap.josm.plugins.amatosmeditor.downloadtasks.AMATDownloadOsmTask;
+import org.openstreetmap.josm.plugins.amatosmeditor.gui.layer.AMATOsmDataLayer;
 
 public class AMATOSMEditorPlugin extends Plugin implements LayerChangeListener, EditLayerChangeListener {
    LaunchAction action;
@@ -107,7 +108,12 @@ public class AMATOSMEditorPlugin extends Plugin implements LayerChangeListener, 
 //				String url = String.format("http://127.0.0.1:8000/osm/api/0.6/map/?bbox=%s",allbounds.toBBox().toStringCSV(","));
 				openUrl(url);
 			}
-		}		
+		}	
+		
+		if(newLayer instanceof AMATOsmDataLayer) {
+			action.setLayer(newLayer);
+			mapFrame.mapView.moveLayer(newLayer, 99999);
+		}
 	}
 
 	/* (non-Javadoc)
@@ -115,8 +121,8 @@ public class AMATOSMEditorPlugin extends Plugin implements LayerChangeListener, 
 	 */
 	@Override
 	public void layerRemoved(Layer oldLayer) {
-		// TODO Auto-generated method stub
-		
+		if(oldLayer instanceof AMATOsmDataLayer)
+			action.setLayer(null);
 	}
 	
 	///////////

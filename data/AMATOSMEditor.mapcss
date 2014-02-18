@@ -1,0 +1,15 @@
+way[loc_ref][AMAT] 
+{  
+	width: 10;
+}
+
+way[loc_ref][!AMAT] 
+{  
+	width: 5;
+	color: green;
+}
+
+way[loc_ref<0] 
+{  
+	color: yellow;
+}
