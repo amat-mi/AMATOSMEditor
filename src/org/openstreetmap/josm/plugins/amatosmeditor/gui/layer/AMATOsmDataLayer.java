@@ -132,7 +132,8 @@ public class AMATOsmDataLayer extends Layer implements Listener, SelectionChange
      */
     static public String createNewName() {
         dataLayerCounter++;
-        return tr("Data Layer {0}", dataLayerCounter);
+//        return tr("Data Layer {0}", dataLayerCounter);
+        return tr("AMAT {0}", dataLayerCounter);
     }
 
     public final static class DataCountVisitor extends AbstractVisitor {

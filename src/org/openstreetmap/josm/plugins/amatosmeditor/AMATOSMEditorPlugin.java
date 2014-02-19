@@ -1,83 +1,56 @@
 package org.openstreetmap.josm.plugins.amatosmeditor;
 
-import static org.openstreetmap.josm.tools.I18n.tr;
-
-import java.util.concurrent.Future;
-
-import javax.swing.JOptionPane;
-
 import org.openstreetmap.josm.Main;
-import org.openstreetmap.josm.actions.downloadtasks.DownloadTask;
-import org.openstreetmap.josm.actions.downloadtasks.PostDownloadHandler;
-import org.openstreetmap.josm.data.Bounds;
-import org.openstreetmap.josm.data.osm.DataSet;
-import org.openstreetmap.josm.gui.HelpAwareOptionPane;
 import org.openstreetmap.josm.gui.MainMenu;
 import org.openstreetmap.josm.gui.MapFrame;
-import org.openstreetmap.josm.gui.MapView.EditLayerChangeListener;
+import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.gui.MapView.LayerChangeListener;
-import org.openstreetmap.josm.gui.help.HelpUtil;
 import org.openstreetmap.josm.gui.layer.Layer;
-import org.openstreetmap.josm.gui.layer.OsmDataLayer;
-import org.openstreetmap.josm.gui.progress.PleaseWaitProgressMonitor;
 import org.openstreetmap.josm.plugins.Plugin;
 import org.openstreetmap.josm.plugins.PluginInformation;
-import org.openstreetmap.josm.plugins.amatosmeditor.downloadtasks.AMATDownloadOsmTask;
 import org.openstreetmap.josm.plugins.amatosmeditor.gui.layer.AMATOsmDataLayer;
 
 public class AMATOSMEditorPlugin extends Plugin implements LayerChangeListener {
-   CopyWayAction copyAction;
-   CompareWayAction compareAction;
-   
-   private MapFrame mapFrame;
+	AMATDownloadAction downloadAction;
+	CopyWayAction copyAction;
+	CompareWayAction compareAction;
 
-   /**
-    * constructor
-    */
-   public AMATOSMEditorPlugin(PluginInformation info) {
-      super(info);
-      copyAction = new CopyWayAction();
-      MainMenu.add(Main.main.menu.dataMenu, copyAction, false,0);      
-      compareAction = new CompareWayAction();
-      MainMenu.add(Main.main.menu.dataMenu, compareAction, false,0);      
-   }
+	private MapFrame mapFrame;
+
+	/**
+	 * constructor
+	 */
+	public AMATOSMEditorPlugin(PluginInformation info) {
+		super(info);
+		downloadAction = new AMATDownloadAction();
+		MainMenu.add(Main.main.menu.dataMenu, downloadAction, false,0);      
+		copyAction = new CopyWayAction();
+		MainMenu.add(Main.main.menu.dataMenu, copyAction, false,0);      
+		compareAction = new CompareWayAction();
+		MainMenu.add(Main.main.menu.dataMenu, compareAction, false,0);      
+	}
 
 	@Override
 	public void mapFrameInitialized(MapFrame oldFrame, MapFrame newFrame) {
 		super.mapFrameInitialized(oldFrame, newFrame);
 		if(newFrame == null && this.mapFrame != null) {
-			this.mapFrame.mapView.removeLayerChangeListener(this);
+			MapView.removeLayerChangeListener(this);
+			MapView.removeLayerChangeListener(downloadAction);
+			downloadAction.setMapView(null);
 		}
-		
+
 		this.mapFrame = newFrame;
-		
+
 		if(this.mapFrame != null) {
-//NOOO!!! Do not use this right now, it is not complete, nor working!!!			
-//			this.mapFrame.addMapMode(new IconToggleButton(new AMATSelectAction(this.mapFrame)));
-			
-			this.mapFrame.mapView.addLayerChangeListener(this);
+			//NOOO!!! Do not use this right now, it is not complete, nor working!!!			
+			//			this.mapFrame.addMapMode(new IconToggleButton(new AMATSelectAction(this.mapFrame)));
+
+			MapView.addLayerChangeListener(this);
+			MapView.addLayerChangeListener(downloadAction);
+			downloadAction.setMapView(this.mapFrame.mapView);
 		}
 	}
 
-    public void openUrl(final String url) {
-        PleaseWaitProgressMonitor monitor = new PleaseWaitProgressMonitor(tr("Download Data"));
-        DownloadTask task = new AMATDownloadOsmTask();
-        Future<?> future = null;
-        try {
-            future = task.loadUrl(true, url, monitor);
-        } catch (IllegalArgumentException e) {
-            Main.error(e);
-        }
-        if (future != null) {
-            Main.worker.submit(new PostDownloadHandler(task, future));
-        } else {
-            final String details = "Impossibile caricare dati AMATOSM";
-            HelpAwareOptionPane.showMessageDialogInEDT(Main.parent, "<html><p>" + tr(
-                    "Cannot open URL ''{0}''<br>The following download tasks accept the URL patterns shown:<br>{1}",
-                    url, details) + "</p></html>", tr("Download Location"), JOptionPane.ERROR_MESSAGE, HelpUtil.ht("/Action/OpenLocation"));
-        }
-    }
-	
 	/////////// LayerChangeListener
 	/* (non-Javadoc)
 	 * @see org.openstreetmap.josm.gui.MapView.LayerChangeListener#activeLayerChange(org.openstreetmap.josm.gui.layer.Layer, org.openstreetmap.josm.gui.layer.Layer)
@@ -85,32 +58,14 @@ public class AMATOSMEditorPlugin extends Plugin implements LayerChangeListener {
 	@Override
 	public void activeLayerChange(Layer oldLayer, Layer newLayer) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
-	/* (non-Javadoc)
-	 * @see org.openstreetmap.josm.gui.MapView.LayerChangeListener#layerAdded(org.openstreetmap.josm.gui.layer.Layer)
+	/**
+	 * If the added layer is the AMAT one, pass it to our actions and set it below all other
 	 */
 	@Override
 	public void layerAdded(Layer newLayer) {
-		if(newLayer instanceof OsmDataLayer) {
-			DataSet dataset = ((OsmDataLayer)newLayer).data;
-			Bounds allbounds = null;
-			for (Bounds bound : dataset.getDataSourceBounds()) {
-				if(allbounds == null)
-					allbounds = new Bounds(bound);
-				else
-					allbounds.extend(bound);
-			}
-
-			if(allbounds != null && !allbounds.isCollapsed()) { 
-//				String url = "http://127.0.0.1:8000/osm/api/0.6/map/?bbox=9.100331411844676,45.437485608042365,9.168995962623184,45.46458092725076";
-				String url = String.format("http://127.0.0.1:8000/osm/api/0.6/map/?bbox=%s",allbounds.toBBox().toStringCSV(","));
-				openUrl(url);
-			}
-		}	
-		
-		//If new layer is an AMAT one, pass it to our actions and set it below all other
 		if(newLayer instanceof AMATOsmDataLayer) {
 			copyAction.setLayer(newLayer);
 			compareAction.setLayer(newLayer);
@@ -118,8 +73,8 @@ public class AMATOSMEditorPlugin extends Plugin implements LayerChangeListener {
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see org.openstreetmap.josm.gui.MapView.LayerChangeListener#layerRemoved(org.openstreetmap.josm.gui.layer.Layer)
+	/**
+	 * If the removed layer is the AMAT one, unset it from our actions
 	 */
 	@Override
 	public void layerRemoved(Layer oldLayer) {
@@ -128,6 +83,6 @@ public class AMATOSMEditorPlugin extends Plugin implements LayerChangeListener {
 			compareAction.setLayer(null);
 		}
 	}
-	
+
 	///////////
 }

@@ -29,13 +29,13 @@ import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.Geometry;
 import org.openstreetmap.josm.tools.Shortcut;
 
-public class CopyWayAction extends AMATWayAction
+public class CopyWayAction extends BaseWayAction
 {
 	private static final long serialVersionUID = -3508864293222033185L;
-
+	
 	public CopyWayAction()
 	{
-		super("AMATOSMEditor-CopyWayAction", 
+		super("AMAT Copy Way", 
 				"amat-logo-32", 
 				"Copy AMAT Way data into selected OSM Way", 
 				Shortcut.registerShortcut("amatosmeditor:copyway", 
@@ -79,6 +79,9 @@ public class CopyWayAction extends AMATWayAction
 	@Override
 	public void actionPerformed(ActionEvent e)
 	{
+		if(!isEnabled())
+			return;
+		
 		Way amatWay = findAMATWay();
 		if( amatWay == null)
 			return;

@@ -7,17 +7,17 @@ import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.plugins.amatosmeditor.gui.dialogs.AMATComparePrimitiveDialog;
 import org.openstreetmap.josm.tools.Shortcut;
 
-public class CompareWayAction extends AMATWayAction
+public class CompareWayAction extends BaseWayAction
 {
 	private static final long serialVersionUID = -3508864293222033185L;
-
+	
 	public CompareWayAction()
 	{
-		super("AMATOSMEditor-CompareWayAction", 
+		super("AMAT Compare Ways", 
 				"amat-logo-32", 
 				"Compare selected OSM Way with AMAT Way", 
-				Shortcut.registerShortcut("amatosmeditor:compareway", 
-						"AMAT Compare Way", KeyEvent.VK_Q, Shortcut.CTRL_SHIFT),
+				Shortcut.registerShortcut("amatosmeditor:compareways", 
+						"AMAT Compare Ways", KeyEvent.VK_Q, Shortcut.CTRL_SHIFT),
 				true,
 				null,
 				true);
@@ -26,6 +26,9 @@ public class CompareWayAction extends AMATWayAction
 	@Override
 	public void actionPerformed(ActionEvent e)
 	{
+		if(!isEnabled())
+			return;
+		
 		Way amatWay = findAMATWay();
 
 		if( amatWay != null) {

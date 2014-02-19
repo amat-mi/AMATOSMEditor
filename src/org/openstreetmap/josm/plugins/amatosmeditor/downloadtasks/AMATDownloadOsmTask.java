@@ -20,7 +20,6 @@ import org.openstreetmap.josm.data.osm.DataSource;
 import org.openstreetmap.josm.data.osm.visitor.BoundingXYVisitor;
 import org.openstreetmap.josm.gui.PleaseWaitRunnable;
 import org.openstreetmap.josm.gui.layer.Layer;
-import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.progress.NullProgressMonitor;
 import org.openstreetmap.josm.gui.progress.ProgressMonitor;
 import org.openstreetmap.josm.io.BoundingBoxDownloader;
@@ -48,8 +47,13 @@ public class AMATDownloadOsmTask extends AbstractDownloadTask {
     protected DownloadTask downloadTask;
 
     protected String newLayerName = null;
+	private boolean deletePreviousData;
 
-    @Override
+    public AMATDownloadOsmTask(boolean deletePreviousData) {
+		this.deletePreviousData = deletePreviousData;
+	}
+
+	@Override
     public String[] getPatterns() {
         if (this.getClass() == AMATDownloadOsmTask.class) {
             return new String[]{PATTERN_OSM_API_URL, PATTERN_OVERPASS_API_URL,
@@ -219,7 +223,7 @@ public class AMATDownloadOsmTask extends AbstractDownloadTask {
 
         protected AMATOsmDataLayer createNewLayer(String layerName) {
             if (layerName == null || layerName.isEmpty()) {
-                layerName = OsmDataLayer.createNewName();
+                layerName = AMATOsmDataLayer.createNewName();
             }
             return new AMATOsmDataLayer(dataSet, layerName, null);
         }
@@ -255,6 +259,10 @@ public class AMATDownloadOsmTask extends AbstractDownloadTask {
                     computeBboxAndCenterScale();
                 }            	
             } else {
+            	//If requested, delete previous data from the layer
+            	if(deletePreviousData)
+            		layer.data.clear();
+            	
             	layer.mergeFrom(dataSet);
                 computeBboxAndCenterScale();
                 layer.onPostDownloadFromServer();            	
