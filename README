@@ -1,2 +1,38 @@
 README for AMATOSMEditor
 =================================
+
+* To set the URL of the AMAT OSM Server go to "Edit / Preferences"
+than to the last but one page from the bottom of the dialog
+and set the URL into the text box like this:
+    http://127.0.0.1:8000/osm/api
+    
+without any trailing slashes.
+
+* To use the plugin, load any OSM data from any source (ie: OSM server, from disk, using Tasking Manager, etc.)
+
+* To load data from the AMAT OSM Server use action:
+    "Data / AMAT Download (CTRL + SHIFT + D)"
+It's important to use the action again whenever new OSM data are loaded (or new bounds are added).
+Note that the "AMAT" layer created in JOSM it is NOT editable.
+
+*  Select a Way in any OSM layer and move its first and last Nodes roughly upon the two matching AMAT Nodes,
+than select only the Way itself
+
+* To see a comparison dialog of data from the OSM Way and the matched AMAT Way, use action:
+    "Data / AMAT Compare Ways (CTRL + SHIFT + Q)"
+
+* To copy data into the OSM Way from the matched AMAT Way, use action:
+    "Data / AMAT Copy Way (CTRL + SHIFT + A)"
+
+* If the OSM Way is longer than any near AMAT Way, you must split it up using action:
+    "Tools / Split Way (P)"
+    
+* If the geometry of the OSM Way is inverted, you must split it up using action:
+    "Tools / Reverse Ways (R)"
+    
+* If the "AMAT Copy Way" action find conflicting tags between OSM and AMAT Ways, it shows a comparison dialog
+where you can decide what to do:
+    All => copy both geometry and tags
+    Geom => copy geometry only
+    Tags => copy tags only
+    Cancel => do not copy anything
