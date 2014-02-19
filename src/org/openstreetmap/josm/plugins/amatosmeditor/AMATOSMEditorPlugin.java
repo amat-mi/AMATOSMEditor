@@ -28,7 +28,8 @@ import org.openstreetmap.josm.plugins.amatosmeditor.downloadtasks.AMATDownloadOs
 import org.openstreetmap.josm.plugins.amatosmeditor.gui.layer.AMATOsmDataLayer;
 
 public class AMATOSMEditorPlugin extends Plugin implements LayerChangeListener, EditLayerChangeListener {
-   LaunchAction action;
+   CopyWayAction copyAction;
+   CompareWayAction compareAction;
    
    private MapFrame mapFrame;
 
@@ -37,8 +38,10 @@ public class AMATOSMEditorPlugin extends Plugin implements LayerChangeListener, 
     */
    public AMATOSMEditorPlugin(PluginInformation info) {
       super(info);
-      action = new LaunchAction(getPluginDir());
-      MainMenu.add(Main.main.menu.dataMenu, action, false,0);      
+      copyAction = new CopyWayAction();
+      MainMenu.add(Main.main.menu.dataMenu, copyAction, false,0);      
+      compareAction = new CompareWayAction();
+      MainMenu.add(Main.main.menu.dataMenu, compareAction, false,0);      
    }
 
 	@Override
@@ -111,7 +114,8 @@ public class AMATOSMEditorPlugin extends Plugin implements LayerChangeListener, 
 		}	
 		
 		if(newLayer instanceof AMATOsmDataLayer) {
-			action.setLayer(newLayer);
+			copyAction.setLayer(newLayer);
+			compareAction.setLayer(newLayer);
 			mapFrame.mapView.moveLayer(newLayer, 99999);
 		}
 	}
@@ -121,8 +125,10 @@ public class AMATOSMEditorPlugin extends Plugin implements LayerChangeListener, 
 	 */
 	@Override
 	public void layerRemoved(Layer oldLayer) {
-		if(oldLayer instanceof AMATOsmDataLayer)
-			action.setLayer(null);
+		if(oldLayer instanceof AMATOsmDataLayer) {
+			copyAction.setLayer(null);
+			compareAction.setLayer(null);
+		}
 	}
 	
 	///////////
