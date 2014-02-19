@@ -12,7 +12,6 @@ import org.openstreetmap.josm.actions.downloadtasks.PostDownloadHandler;
 import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane;
-import org.openstreetmap.josm.gui.IconToggleButton;
 import org.openstreetmap.josm.gui.MainMenu;
 import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.MapView.EditLayerChangeListener;
@@ -23,11 +22,10 @@ import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.progress.PleaseWaitProgressMonitor;
 import org.openstreetmap.josm.plugins.Plugin;
 import org.openstreetmap.josm.plugins.PluginInformation;
-import org.openstreetmap.josm.plugins.amatosmeditor.actions.mapmode.AMATSelectAction;
 import org.openstreetmap.josm.plugins.amatosmeditor.downloadtasks.AMATDownloadOsmTask;
 import org.openstreetmap.josm.plugins.amatosmeditor.gui.layer.AMATOsmDataLayer;
 
-public class AMATOSMEditorPlugin extends Plugin implements LayerChangeListener, EditLayerChangeListener {
+public class AMATOSMEditorPlugin extends Plugin implements LayerChangeListener {
    CopyWayAction copyAction;
    CompareWayAction compareAction;
    
@@ -49,16 +47,15 @@ public class AMATOSMEditorPlugin extends Plugin implements LayerChangeListener, 
 		super.mapFrameInitialized(oldFrame, newFrame);
 		if(newFrame == null && this.mapFrame != null) {
 			this.mapFrame.mapView.removeLayerChangeListener(this);
-			this.mapFrame.mapView.removeEditLayerChangeListener(this);
 		}
 		
 		this.mapFrame = newFrame;
 		
 		if(this.mapFrame != null) {
-			this.mapFrame.addMapMode(new IconToggleButton(new AMATSelectAction(this.mapFrame)));
+//NOOO!!! Do not use this right now, it is not complete, nor working!!!			
+//			this.mapFrame.addMapMode(new IconToggleButton(new AMATSelectAction(this.mapFrame)));
 			
 			this.mapFrame.mapView.addLayerChangeListener(this);
-			this.mapFrame.mapView.addEditLayerChangeListener(this, true);
 		}
 	}
 
@@ -132,17 +129,4 @@ public class AMATOSMEditorPlugin extends Plugin implements LayerChangeListener, 
 	}
 	
 	///////////
-
-	/////////// EditLayerChangeListener
-	
-	/* (non-Javadoc)
-	 * @see org.openstreetmap.josm.gui.MapView.EditLayerChangeListener#editLayerChanged(org.openstreetmap.josm.gui.layer.OsmDataLayer, org.openstreetmap.josm.gui.layer.OsmDataLayer)
-	 */
-	@Override
-	public void editLayerChanged(OsmDataLayer oldLayer, OsmDataLayer newLayer) {
-		// TODO Auto-generated method stub
-		
-	}   
-	
-	///////////	
 }
