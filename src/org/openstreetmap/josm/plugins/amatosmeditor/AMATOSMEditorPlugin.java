@@ -92,8 +92,8 @@ public class AMATOSMEditorPlugin extends Plugin implements LayerChangeListener {
 	 * @see org.openstreetmap.josm.gui.MapView.LayerChangeListener#layerAdded(org.openstreetmap.josm.gui.layer.Layer)
 	 */
 	@Override
-	public void layerAdded(Layer newLayer) {		
-		if(newLayer instanceof OsmDataLayer && !"AMATOSM".equalsIgnoreCase(newLayer.getName())) {
+	public void layerAdded(Layer newLayer) {
+		if(newLayer instanceof OsmDataLayer) {
 			DataSet dataset = ((OsmDataLayer)newLayer).data;
 			Bounds allbounds = null;
 			for (Bounds bound : dataset.getDataSourceBounds()) {
@@ -104,12 +104,13 @@ public class AMATOSMEditorPlugin extends Plugin implements LayerChangeListener {
 			}
 
 			if(allbounds != null && !allbounds.isCollapsed()) { 
-				String url = "http://127.0.0.1:8000/osm/api/0.6/map/?bbox=9.100331411844676,45.437485608042365,9.168995962623184,45.46458092725076";
-//				String url = String.format("http://127.0.0.1:8000/osm/api/0.6/map/?bbox=%s",allbounds.toBBox().toStringCSV(","));
+//				String url = "http://127.0.0.1:8000/osm/api/0.6/map/?bbox=9.100331411844676,45.437485608042365,9.168995962623184,45.46458092725076";
+				String url = String.format("http://127.0.0.1:8000/osm/api/0.6/map/?bbox=%s",allbounds.toBBox().toStringCSV(","));
 				openUrl(url);
 			}
 		}	
 		
+		//If new layer is an AMAT one, pass it to our actions and set it below all other
 		if(newLayer instanceof AMATOsmDataLayer) {
 			copyAction.setLayer(newLayer);
 			compareAction.setLayer(newLayer);

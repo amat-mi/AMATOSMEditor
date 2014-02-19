@@ -237,7 +237,7 @@ public class AMATDownloadOsmTask extends AbstractDownloadTask {
                 rememberErrorMessage(tr("No data found in this area."));
                 // need to synthesize a download bounds lest the visual indication of downloaded
                 // area doesn't work
-                dataSet.dataSources.add(new DataSource(currentBounds != null ? currentBounds : new Bounds(new LatLon(0, 0)), "OpenStreetMap server"));
+                dataSet.dataSources.add(new DataSource(currentBounds != null ? currentBounds : new Bounds(new LatLon(0, 0)), "AMATOSM Server"));
             }
 
             rememberDownloadedData(dataSet);
