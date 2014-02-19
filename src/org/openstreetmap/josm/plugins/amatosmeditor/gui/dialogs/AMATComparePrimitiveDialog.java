@@ -43,28 +43,63 @@ import org.openstreetmap.josm.tools.WindowGeometry;
  */
 public class AMATComparePrimitiveDialog extends ExtendedDialog {
 
-    protected OsmPrimitive primitive1;
-    protected OsmPrimitive primitive2;
-    protected Layer layer;
+	private OsmPrimitive primitive1;
+	private OsmPrimitive primitive2;
+	private Layer layer;
+    private boolean askConfirmation;	//wherever to show confirmation buttons, or cancel only
+    
+    public static final int VALUE_ALL = 1;
+    public static final int VALUE_GEOM = 2;
+    public static final int VALUE_TAGS = 3;
 
-    public AMATComparePrimitiveDialog(OsmPrimitive primitive1, OsmPrimitive primitive2, Layer layer) {
-        super(Main.parent, tr("Compare PSM and AMAT ways and confirm updating"), 
-        		new String[] { tr("OK"), tr("Cancel") },true);
+    public AMATComparePrimitiveDialog(OsmPrimitive primitive1, OsmPrimitive primitive2, Layer layer,
+    		boolean askConfirmation) {
+        super(Main.parent, 
+        		askConfirmation ?
+        				tr("Compare OSM and AMAT ways and confirm updating") :
+        				tr("Compare OSM and AMAT ways"),
+        		askConfirmation ? 
+        				new String[] { tr("All"), tr("Geom"), tr("Tags"), tr("Cancel") } :
+        				new String[] { tr("Cancel") },
+        		true);
         
         this.primitive1 = primitive1;
         this.primitive2 = primitive2;
         this.layer = layer;
+        this.askConfirmation = askConfirmation;
+        
         setRememberWindowGeometry(getClass().getName() + ".geometry",
                 WindowGeometry.centerInWindow(Main.parent, new Dimension(750, 550)));
 
         setContent(buildDataPanel(), false);
         
-        setButtonIcons(new String[] { "ok.png", "cancel.png" });
+        if(askConfirmation)
+        	setButtonIcons(new String[] { "ok.png", "ok.png", "ok.png", "cancel.png" });
+        else
+        	setButtonIcons(new String[] { "cancel.png" });
+        
         setDefaultButton(1);
         setupDialog();
         getRootPane().setDefaultButton(defaultButton);        
     }
 
+    public boolean isCancelled() {
+    	int value = getValue();
+    	if(value == ExtendedDialog.DialogClosedOtherwise)
+    		return true;
+    	return askConfirmation ? value > VALUE_TAGS : true; 
+    }
+    
+    public boolean isGeomConfirmed() {
+    	int value = getValue();
+    	return isCancelled() ? false : value == VALUE_ALL || value == VALUE_GEOM;  
+    }
+       
+    public boolean isTagsConfirmed() {
+    	int value = getValue();
+    	return isCancelled() ? false : value == VALUE_ALL || value == VALUE_TAGS;  
+    }
+    
     protected Component buildDataPanel() {
         JPanel p = new JPanel(new GridBagLayout());
         p.add(buildDataTextArea(primitive1), GBC.std(0,0).weight(0.1,1.0).fill(GBC.BOTH));

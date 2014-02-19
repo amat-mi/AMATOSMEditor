@@ -29,7 +29,7 @@ public class CompareWayAction extends AMATWayAction
 		Way amatWay = findAMATWay();
 
 		if( amatWay != null) {
-			AMATComparePrimitiveDialog dialog = new AMATComparePrimitiveDialog(osmWay,amatWay, null);
+			AMATComparePrimitiveDialog dialog = new AMATComparePrimitiveDialog(osmWay,amatWay, null, false);
 			dialog.showDialog();
 		}
 	}
