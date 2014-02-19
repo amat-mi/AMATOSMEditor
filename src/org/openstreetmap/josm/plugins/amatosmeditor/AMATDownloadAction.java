@@ -57,9 +57,10 @@ public class AMATDownloadAction extends JosmAction implements LayerChangeListene
 {
 	private static final long serialVersionUID = -3508864293222033185L;
 	
-	MapView mapView = null;
+	private MapView mapView = null;
+	private String amatosmUrl;
 	
-	public AMATDownloadAction() {
+	public AMATDownloadAction(String amatosmUrl) {
 		super("AMAT Download", 
 				"amat-logo-32", 
 				"Download AMAT data from AMATOSM Server", 
@@ -68,6 +69,8 @@ public class AMATDownloadAction extends JosmAction implements LayerChangeListene
 				true,
 				null,
 				true);
+		
+		this.amatosmUrl = amatosmUrl;
 	}
 
 	/**
@@ -82,6 +85,20 @@ public class AMATDownloadAction extends JosmAction implements LayerChangeListene
 	 */
 	public void setMapView(MapView mapView) {
 		this.mapView = mapView;
+	}
+	
+	/**
+	 * @return the amatosmUrl
+	 */
+	public String getAmatosmUrl() {
+		return amatosmUrl;
+	}
+
+	/**
+	 * @param amatosmUrl the amatosmUrl to set
+	 */
+	public void setAmatosmUrl(String amatosmUrl) {
+		this.amatosmUrl = amatosmUrl;
 	}
 
 	/////////// LayerChangeListener
@@ -135,8 +152,9 @@ public class AMATDownloadAction extends JosmAction implements LayerChangeListene
 		for (OsmDataLayer layer : mapView.getLayersOfType(OsmDataLayer.class)) {
 			for (Bounds bound : layer.data.getDataSourceBounds()) {
 				if(!bound.isCollapsed()) { 
-					//				String url = "http://127.0.0.1:8000/osm/api/0.6/map/?bbox=9.100331411844676,45.437485608042365,9.168995962623184,45.46458092725076";
-					String url = String.format("http://127.0.0.1:8000/osm/api/0.6/map/?bbox=%s",bound.toBBox().toStringCSV(","));
+					//String url = "http://127.0.0.1:8000/osm/api/0.6/map/?bbox=9.100331411844676,45.437485608042365,9.168995962623184,45.46458092725076";
+					//String url = String.format("http://127.0.0.1:8000/osm/api/0.6/map/?bbox=%s",bound.toBBox().toStringCSV(","));
+					String url = String.format("%s/0.6/map/?bbox=%s",amatosmUrl,bound.toBBox().toStringCSV(","));
 					openUrl(url,deletePreviousData);
 					deletePreviousData = false;
 				}			
@@ -163,10 +181,10 @@ public class AMATDownloadAction extends JosmAction implements LayerChangeListene
 	}
 	
 	/**
-	 * 	Enabled only if MapView actually exist and at least an edit layer exists
+	 * 	Enabled only if MapView actually exist and at least an edit layer exists and AMAT OSM Server url is set
 	 */
 	@Override
 	protected void updateEnabledState() {
-		setEnabled(mapView != null && getEditLayer() != null);
+		setEnabled(amatosmUrl != null && mapView != null && getEditLayer() != null);
 	}
 }

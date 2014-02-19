@@ -1,11 +1,14 @@
 package org.openstreetmap.josm.plugins.amatosmeditor;
 
 import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.data.Preferences.PreferenceChangeEvent;
+import org.openstreetmap.josm.data.Preferences.PreferenceChangedListener;
 import org.openstreetmap.josm.gui.MainMenu;
 import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.gui.MapView.LayerChangeListener;
 import org.openstreetmap.josm.gui.layer.Layer;
+import org.openstreetmap.josm.gui.preferences.PreferenceSetting;
 import org.openstreetmap.josm.plugins.Plugin;
 import org.openstreetmap.josm.plugins.PluginInformation;
 import org.openstreetmap.josm.plugins.amatosmeditor.gui.layer.AMATOsmDataLayer;
@@ -22,13 +25,26 @@ public class AMATOSMEditorPlugin extends Plugin implements LayerChangeListener {
 	 */
 	public AMATOSMEditorPlugin(PluginInformation info) {
 		super(info);
-		downloadAction = new AMATDownloadAction();
+		downloadAction = new AMATDownloadAction(Main.pref.get("amatosm-server.url", ""));
 		MainMenu.add(Main.main.menu.dataMenu, downloadAction, false,0);      
 		copyAction = new CopyWayAction();
 		MainMenu.add(Main.main.menu.dataMenu, copyAction, false,0);      
 		compareAction = new CompareWayAction();
-		MainMenu.add(Main.main.menu.dataMenu, compareAction, false,0);      
+		MainMenu.add(Main.main.menu.dataMenu, compareAction, false,0);
+		
+		Main.pref.addPreferenceChangeListener(new PreferenceChangedListener() {			
+			@Override
+			public void preferenceChanged(PreferenceChangeEvent e) {
+				if("amatosm-server.url".equals(e.getKey()))
+					downloadAction.setAmatosmUrl(Main.pref.get("amatosm-server.url", ""));
+			}
+		});
 	}
+	
+    @Override
+    public PreferenceSetting getPreferenceSetting() {
+        return new AMATPreferenceSetting();
+    }
 
 	@Override
 	public void mapFrameInitialized(MapFrame oldFrame, MapFrame newFrame) {

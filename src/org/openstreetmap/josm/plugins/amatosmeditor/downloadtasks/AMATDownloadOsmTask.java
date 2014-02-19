@@ -37,10 +37,7 @@ import org.xml.sax.SAXException;
  */
 public class AMATDownloadOsmTask extends AbstractDownloadTask {
 
-    protected static final String PATTERN_OSM_API_URL           = "http://.*/api/0.6/(map|nodes?|ways?|relations?|\\*).*";
-    protected static final String PATTERN_OVERPASS_API_URL      = "http://.*/interpreter\\?data=.*";
-    protected static final String PATTERN_OVERPASS_API_XAPI_URL = "http://.*/xapi(\\?.*\\[@meta\\]|_meta\\?).*";
-    protected static final String PATTERN_EXTERNAL_OSM_FILE     = "https?://.*/.*\\.osm";
+    protected static final String PATTERN_OSM_API_URL           = "http://.*/api/0.6/(map|\\*).*";
 
     protected Bounds currentBounds;
     protected DataSet downloadedData;
@@ -56,8 +53,7 @@ public class AMATDownloadOsmTask extends AbstractDownloadTask {
 	@Override
     public String[] getPatterns() {
         if (this.getClass() == AMATDownloadOsmTask.class) {
-            return new String[]{PATTERN_OSM_API_URL, PATTERN_OVERPASS_API_URL,
-                PATTERN_OVERPASS_API_XAPI_URL, PATTERN_EXTERNAL_OSM_FILE};
+            return new String[]{PATTERN_OSM_API_URL};
         } else {
             return super.getPatterns();
         }
@@ -203,9 +199,12 @@ public class AMATDownloadOsmTask extends AbstractDownloadTask {
                     setCanceled(true);
                     return;
                 } else if (e instanceof OsmTransferException) {
+                	((OsmTransferException) e).setUrl("AMAT OSM Server");
                     rememberException(e);
                 } else {
-                    rememberException(new OsmTransferException(e));
+                	OsmTransferException ote = new OsmTransferException(e);
+                	ote.setUrl("AMAT OSM Server");
+                    rememberException(ote);
                 }
                 AMATDownloadOsmTask.this.setFailed(true);
             }
