@@ -87,69 +87,79 @@ public class CopyWayAction extends BaseWayAction
 			return;
 
 		//Copy over tags from AMAT to OSM Way, excluding keys like "AMAT%" and keys that must not be exported
-		//Separate tags to add from tag to change (the ones already present in OSM Way with a different value)
 		//Ignore tag already present in OSM Way with the same value as in AMAT Way
+		//Set a flag if any tag was already present in OSM Way with a different value		
 		Set<String> tagsDoNotExport = new HashSet<String>();
 		tagsDoNotExport.add("highway");		
-		AbstractMap<String, String> tagsToAdd = new HashMap<String,String>();
-		AbstractMap<String, String> tagsToChange = new HashMap<String,String>();
+		AbstractMap<String, String> tagsToSet = new HashMap<String,String>();
+		boolean needConfirmation = false;
 		for (String key : amatWay.keySet()) {
 			if(!key.startsWith("AMAT"))
 				if(!tagsDoNotExport.contains(key)) {
 					String amatValue = amatWay.get(key);
 					if(osmWay.hasKey(key)) {
 						String osmValue = osmWay.get(key);
-						if((osmValue == null && amatValue != null) || (osmValue != null && amatValue == null))
-							tagsToChange.put(key, amatValue);
-						else if(osmValue != null && amatValue != null)
-							if(osmValue.compareTo(amatValue) != 0)
-								tagsToChange.put(key, amatValue);						
+						if((osmValue == null && amatValue != null) || (osmValue != null && amatValue == null)) {
+							tagsToSet.put(key, amatValue);
+							needConfirmation = true;
+						} else if(osmValue != null && amatValue != null) {
+							if(osmValue.compareTo(amatValue) != 0) {
+								tagsToSet.put(key, amatValue);		
+								needConfirmation = true;
+							}
+						}
 					} else
-						tagsToAdd.put(key, amatValue);
+						tagsToSet.put(key, amatValue);
 				}
 		}
 
 		//Remove from OSM Way, tags with keys that must not be present if not present in AMAT Way
 		//Do it only if they're actually present in OSM Way
+		//Set a flag if any tag removed		
 		Set<String> tagsRemoveIfAbsent = new HashSet<String>();
 		tagsRemoveIfAbsent.add("oneway");
-		AbstractMap<String, String> tagsToRemove = new HashMap<String,String>();
 		for (String key : tagsRemoveIfAbsent) {
-			if(!amatWay.hasKey(key) && osmWay.hasKey(key))
-				tagsToRemove.put(key, null);
+			if(!amatWay.hasKey(key) && osmWay.hasKey(key)) {
+				tagsToSet.put(key, null);
+				needConfirmation = true;
+			}
 		}
 
-		//By default should copy both geometry and tags from AMAT Way to OSM Way
+		//By default should copy geometry, loc_ref and other tags from AMAT Way to OSM Way
 		boolean geomConfirmed = true;
+		boolean locrefConfirmed = true;
 		boolean tagsConfirmed = true;
 		
 		//If any tag to change or to delete in OSM Way, show comparison dialog and check for confirmation
-		if(!tagsToChange.isEmpty() || !tagsToRemove.isEmpty()) {
+		if(needConfirmation) {
 			AMATComparePrimitiveDialog dialog = new AMATComparePrimitiveDialog(osmWay,amatWay, null, true);
 			dialog.showDialog();
 			if(dialog.isCancelled() )
 				return;
 			
 			geomConfirmed = dialog.isGeomConfirmed();
+			locrefConfirmed = dialog.isLocRefConfirmed();
 			tagsConfirmed = dialog.isTagsConfirmed();
 		}
 
 		//Create a list of commands to submit as a sequence to the undo/redo system
 		List<Command> commands = new ArrayList<Command>();
 		
-		//If creation of tags confirmed, or needed anyway 
-		if(tagsConfirmed) {
-			if(!tagsToAdd.isEmpty())
-				commands.add(new ChangePropertyCommand(Collections.singletonList(osmWay), tagsToAdd));
-	
-			if(!tagsToChange.isEmpty())
-				commands.add(new ChangePropertyCommand(Collections.singletonList(osmWay), tagsToChange));
-	
-			if(!tagsToRemove.isEmpty())
-				commands.add(new ChangePropertyCommand(Collections.singletonList(osmWay), tagsToRemove));
+		//if any change or deletion of tags
+		if(!tagsToSet.isEmpty()) {
+			//If change of tags confirmed add a command for tags changes
+			if(tagsConfirmed)
+				commands.add(new ChangePropertyCommand(Collections.singletonList(osmWay), tagsToSet));
+			 
+			//If change of tag loc_ref confirmed add a command for tag change
+			if(locrefConfirmed) {
+				if(tagsToSet.containsKey("loc_ref"))
+					commands.add(new ChangePropertyCommand(Collections.singletonList(osmWay), 
+							"loc_ref",tagsToSet.get("loc_ref")));
+			}			
 		}
 		 
-		//If creation of geometry confirmed, or needed anyway 
+		//If creation of geometry confirmed (or needed anyway) 
 		if(geomConfirmed) {
 			List<Node> nodesToSet = new ArrayList<Node>();			//Nodes to set into OSM Way
 			List<Node> nodesToRemove = new ArrayList<Node>();		//Nodes to remove from OSM Way
@@ -169,8 +179,8 @@ public class CopyWayAction extends BaseWayAction
 			if(osmWay.getNodesCount() > 2) {
 				for (int i = 1; i < osmWay.getNodesCount() - 1; i++) {
 					Node node = osmWay.getNode(i);
-					if(!node.hasKeys() && !node.isConnectionNode()) {
-	//				if(!node.isTagged() && !node.isConnectionNode()) {
+//					if(!node.hasKeys() && !node.isConnectionNode()) {       //which one is better???
+					if(!node.isTagged() && !node.isConnectionNode()) {		//which one is better???
 						nodesToRemove.add(node);
 					} else {
 						nodesToNotRemove.add(node);
@@ -185,8 +195,8 @@ public class CopyWayAction extends BaseWayAction
 			//But only if AMAT Way has more than two Nodes or there are not removed Node in OSM Way
 			if(amatWay.getNodesCount() > 2 || !nodesToNotRemove.isEmpty()) {
 				for (int i = 0; i < amatWay.getNodesCount() - 1; i++) {
-					Node node1 = new Node(amatWay.getNode(i).getCoor());
-					Node node2 = new Node(amatWay.getNode(i + 1).getCoor());
+					Node node1 = amatWay.getNode(i);
+					Node node2 = amatWay.getNode(i + 1);
 					for (Node node : nodesToNotRemove) {
 						EastNorth en = closestPointTo(node1, node2, node);
 						if(en != null) {
@@ -196,8 +206,9 @@ public class CopyWayAction extends BaseWayAction
 					}
 					
 					if(!amatWay.isFirstLastNode(node2)) {
-						nodesToSet.add(node2);
-						nodesToAdd.add(node2);
+						Node newnode = new Node(node2.getCoor());
+						nodesToSet.add(newnode);
+						nodesToAdd.add(newnode);
 					}
 				}
 			}

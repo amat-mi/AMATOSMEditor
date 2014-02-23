@@ -49,8 +49,11 @@ public class AMATComparePrimitiveDialog extends ExtendedDialog {
     private boolean askConfirmation;	//wherever to show confirmation buttons, or cancel only
     
     public static final int VALUE_ALL = 1;
-    public static final int VALUE_GEOM = 2;
-    public static final int VALUE_TAGS = 3;
+    public static final int VALUE_GEOM_LOCREF = 2;
+    public static final int VALUE_GEOM = 3;
+    public static final int VALUE_LOCREF = 4;
+    public static final int VALUE_TAGS = 5;
+    public static final int VALUE_CANCELLED = VALUE_TAGS + 1; 
 
     public AMATComparePrimitiveDialog(OsmPrimitive primitive1, OsmPrimitive primitive2, Layer layer,
     		boolean askConfirmation) {
@@ -59,7 +62,13 @@ public class AMATComparePrimitiveDialog extends ExtendedDialog {
         				tr("Compare OSM and AMAT ways and confirm updating") :
         				tr("Compare OSM and AMAT ways"),
         		askConfirmation ? 
-        				new String[] { tr("All"), tr("Geom"), tr("Tags"), tr("Cancel") } :
+        				new String[] { 
+        					tr("All"), 
+        					tr("Geom+LocRef"), 
+        					tr("Geom"), 
+        					tr("LocRef"), 
+        					tr("Tags"), 
+        					tr("Cancel") } :
         				new String[] { tr("Cancel") },
         		true);
         
@@ -74,7 +83,7 @@ public class AMATComparePrimitiveDialog extends ExtendedDialog {
         setContent(buildDataPanel(), false);
         
         if(askConfirmation)
-        	setButtonIcons(new String[] { "ok.png", "ok.png", "ok.png", "cancel.png" });
+        	setButtonIcons(new String[] { "ok.png","ok.png","ok.png","ok.png","ok.png","cancel.png" });
         else
         	setButtonIcons(new String[] { "cancel.png" });
         
@@ -87,12 +96,18 @@ public class AMATComparePrimitiveDialog extends ExtendedDialog {
     	int value = getValue();
     	if(value == ExtendedDialog.DialogClosedOtherwise)
     		return true;
-    	return askConfirmation ? value > VALUE_TAGS : true; 
+    	return askConfirmation ? value >= VALUE_CANCELLED : true; 
     }
     
     public boolean isGeomConfirmed() {
     	int value = getValue();
-    	return isCancelled() ? false : value == VALUE_ALL || value == VALUE_GEOM;  
+    	return isCancelled() ? false : value == VALUE_ALL || value == VALUE_GEOM || value == VALUE_GEOM_LOCREF;
+    }
+       
+    public boolean isLocRefConfirmed() {
+    	int value = getValue();
+    	return isCancelled() ? false : isTagsConfirmed() ? true : 
+    		value == VALUE_ALL || value == VALUE_LOCREF || value == VALUE_GEOM_LOCREF;
     }
        
     public boolean isTagsConfirmed() {

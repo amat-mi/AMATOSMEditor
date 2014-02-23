@@ -1,2 +1,73 @@
 README for AMATOSMEditor
 =================================
+
+* A prebuilt plugin file "AMATOSMEditor.jar" is included in this repository,
+but if you prefer to build the plugin yourself, follow instructions here:
+    http://josm.openstreetmap.de/wiki/DevelopersGuide/DevelopingPlugins
+    
+Note that in order for the build to work you must checkout the JOSM core and its plugins 
+in the same directory tree, so that the structure is like this:
+    josm
+        /core
+            <here goes the JOSM source code>
+        /dist
+        /i18n
+        /nsis
+        /plugins
+  
+You must checkout all JOSM plugins like this:
+    svn co http://svn.openstreetmap.org/applications/editors/josm josm
+	       
+And you must checkout the JOSM code into the "josm/core" directory!!!
+
+Also, since this plugin is not hosted in a SVN repository, you must modify the common build script,
+or the build won't succeed!!!
+Open file "josm/plugins/build-common.xml", and change it like this:
+    <!-- PAOLO 14/02/2014 - Remove use of version from SVN or GIT and make them fixed 
+    <target name="dist" depends="compile,revision"> -->
+    <target name="dist" depends="compile">
+
+Note that this is just a dirty hack!!!
+	        	
+* To manually install the plugin, copy the compiled plugin file "AMATOSMEditor.jar"
+from "josm/dist/" to "~/.josm/plugins/" (to "C:\Users\<username>\AppData\Roaming\JOSM\plugins" for Windows).
+ 
+* To activate the plugin, go to "Edit / Preferences"
+than to the "Configure available plugins" page (the fourth one from the top)
+and activate the "AMATOSMEditor" plugin.
+ 
+* To set the URL of the AMAT OSM Server, go to "Edit / Preferences"
+than to the "Connection settings for the AMAT OSM Server" page (the last but one from the bottom)
+and set the URL into the text box like this:
+    http://127.0.0.1:8000/osm/api
+    
+without any trailing slashes.
+
+* To use the plugin, load any OSM data from any source (ie: OSM server, from disk, using Tasking Manager, etc.)
+
+* To load data from the AMAT OSM Server use action:
+    "Data / AMAT Download (CTRL + SHIFT + D)"
+It's important to use the action again whenever new OSM data are loaded (or new bounds are added).
+Note that the "AMAT" layer created in JOSM it is NOT editable.
+
+*  Select a Way in any OSM layer and move its first and last Nodes roughly upon the two matching AMAT Nodes,
+than select only the Way itself
+
+* To see a comparison dialog of data from the OSM Way and the matched AMAT Way, use action:
+    "Data / AMAT Compare Ways (CTRL + SHIFT + Q)"
+
+* To copy data into the OSM Way from the matched AMAT Way, use action:
+    "Data / AMAT Copy Way (CTRL + SHIFT + A)"
+
+* If the OSM Way is longer than any near AMAT Way, you must split it up using action:
+    "Tools / Split Way (P)"
+    
+* If the geometry of the OSM Way is inverted, you must split it up using action:
+    "Tools / Reverse Ways (R)"
+    
+* If the "AMAT Copy Way" action find conflicting tags between OSM and AMAT Ways, it shows a comparison dialog
+where you can decide what to do:
+    All => copy both geometry and tags
+    Geom => copy geometry only
+    Tags => copy tags only
+    Cancel => do not copy anything
