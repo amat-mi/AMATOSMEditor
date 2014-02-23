@@ -67,7 +67,9 @@ than select only the Way itself
     
 * If the "AMAT Copy Way" action find conflicting tags between OSM and AMAT Ways, it shows a comparison dialog
 where you can decide what to do:
-    All => copy both geometry and tags
-    Geom => copy geometry only
-    Tags => copy tags only
-    Cancel => do not copy anything
+    All =>         copy geometry and all tags
+    Geom+LocRef => copy geometry and tag "loc_ref"
+    Geom =>        copy geometry only
+    LocRef =>      copy tag "loc_ref" only
+    Tags =>        copy all tags
+    Cancel =>      do not copy anything
