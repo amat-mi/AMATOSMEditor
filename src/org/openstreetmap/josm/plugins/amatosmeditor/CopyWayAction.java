@@ -131,7 +131,8 @@ public class CopyWayAction extends BaseWayAction
 		boolean tagsConfirmed = true;
 		
 		//If any tag to change or to delete in OSM Way, show comparison dialog and check for confirmation
-		if(needConfirmation) {
+		//NOOO!!! Always show the confirmation dialog!!!
+		if(needConfirmation || true) {
 			AMATComparePrimitiveDialog dialog = new AMATComparePrimitiveDialog(osmWay,amatWay, null, true);
 			dialog.showDialog();
 			if(dialog.isCancelled() )
