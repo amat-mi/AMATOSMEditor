@@ -13,3 +13,9 @@ way[loc_ref<0]
 {  
 	color: yellow;
 }
+
+way[AMAT] > node {
+  symbol-shape: circle;
+  symbol-stroke-color: cyan;
+  symbol-fill-color: blue;
+}

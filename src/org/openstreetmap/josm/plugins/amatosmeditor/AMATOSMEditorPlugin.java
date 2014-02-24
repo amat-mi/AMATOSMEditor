@@ -3,6 +3,7 @@ package org.openstreetmap.josm.plugins.amatosmeditor;
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.Preferences.PreferenceChangeEvent;
 import org.openstreetmap.josm.data.Preferences.PreferenceChangedListener;
+import org.openstreetmap.josm.gui.IconToggleButton;
 import org.openstreetmap.josm.gui.MainMenu;
 import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.MapView;
@@ -11,13 +12,15 @@ import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.preferences.PreferenceSetting;
 import org.openstreetmap.josm.plugins.Plugin;
 import org.openstreetmap.josm.plugins.PluginInformation;
+import org.openstreetmap.josm.plugins.amatosmeditor.actions.mapmode.AMATSelectAction;
 import org.openstreetmap.josm.plugins.amatosmeditor.gui.layer.AMATOsmDataLayer;
 
 public class AMATOSMEditorPlugin extends Plugin implements LayerChangeListener {
 	AMATDownloadAction downloadAction;
 	CopyWayAction copyAction;
 	CompareWayAction compareAction;
-
+	AMATSelectAction selectAction;
+	
 	private MapFrame mapFrame;
 
 	/**
@@ -64,6 +67,10 @@ public class AMATOSMEditorPlugin extends Plugin implements LayerChangeListener {
 			MapView.addLayerChangeListener(this);
 			MapView.addLayerChangeListener(downloadAction);
 			downloadAction.setMapView(this.mapFrame.mapView);
+			if(selectAction == null) {
+				selectAction = new AMATSelectAction(this.mapFrame);
+				this.mapFrame.addMapMode(new IconToggleButton(selectAction));
+			}
 		}
 	}
 
@@ -85,6 +92,7 @@ public class AMATOSMEditorPlugin extends Plugin implements LayerChangeListener {
 		if(newLayer instanceof AMATOsmDataLayer) {
 			copyAction.setLayer(newLayer);
 			compareAction.setLayer(newLayer);
+			selectAction.setLayer(newLayer);
 			mapFrame.mapView.moveLayer(newLayer, 99999);
 		}
 	}
@@ -97,6 +105,7 @@ public class AMATOSMEditorPlugin extends Plugin implements LayerChangeListener {
 		if(oldLayer instanceof AMATOsmDataLayer) {
 			copyAction.setLayer(null);
 			compareAction.setLayer(null);
+			selectAction.setLayer(null);
 		}
 	}
 
