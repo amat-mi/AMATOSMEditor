@@ -14,7 +14,7 @@ way[loc_ref<0]
 	color: yellow;
 }
 
-way[AMAT] > node {
+way[AMAT] > node:connection {
   symbol-shape: circle;
   symbol-stroke-color: cyan;
   symbol-fill-color: blue;
