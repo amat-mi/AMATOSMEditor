@@ -1,19 +1,37 @@
+way[highway]
+{  
+    width : 2;
+	color: yellow;
+}
+
+/*
+  Archi del grafo AMAT (layer AMAT non selezionabile
+*/
 way[loc_ref][AMAT] 
 {  
 	width: 10;
+    color: grey;
 }
 
-way[loc_ref][!AMAT] 
+/*
+    Archi OSM con tag loc_ref attribuito
+*/
+way[loc_ref][!AMAT]
 {  
 	width: 5;
 	color: green;
 }
 
+/*
+    loc_ref negativo: archi OSM che dovrebbero essere aggiunti
 way[loc_ref<0] 
 {  
+    width: 2;
 	color: yellow;
 }
+*/
 
+/* Nodi che rappresentano Giunzioni tra due Way AMAT */
 way[AMAT] > node:connection {
   symbol-shape: circle;
   symbol-stroke-width: 2;
