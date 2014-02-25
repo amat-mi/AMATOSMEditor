@@ -1,7 +1,6 @@
 // License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.plugins.amatosmeditor.actions.mapmode;
 
-import static org.openstreetmap.josm.gui.help.HelpUtil.ht;
 import static org.openstreetmap.josm.tools.I18n.tr;
 import static org.openstreetmap.josm.tools.I18n.trn;
 
@@ -50,11 +49,11 @@ import org.openstreetmap.josm.gui.ExtendedDialog;
 import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.gui.NavigatableComponent;
-import org.openstreetmap.josm.gui.SelectionManager;
-import org.openstreetmap.josm.gui.SelectionManager.SelectionEnded;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.plugins.amatosmeditor.gui.AMATNavigatableComponent;
+import org.openstreetmap.josm.plugins.amatosmeditor.gui.AMATSelectionManager;
+import org.openstreetmap.josm.plugins.amatosmeditor.gui.AMATSelectionManager.SelectionEnded;
 import org.openstreetmap.josm.plugins.amatosmeditor.gui.layer.AMATOsmDataLayer;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Pair;
@@ -135,8 +134,9 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
     // pressed but the mouse isn't moved)
     private MouseEvent oldEvent = null;
 
-    private Mode mode = null;
-    private SelectionManager selectionManager;
+//    private Mode mode = null;
+    private Mode mode = Mode.select;
+    private AMATSelectionManager selectionManager;
     private boolean cancelDrawMode = false;
     private boolean drawTargetHighlight;
     private boolean didMouseDrag = false;
@@ -200,7 +200,7 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
         mv = mapFrame.mapView;
 //        putValue("help", ht("/Action/Select"));
         amatNC = new AMATNavigatableComponent();
-        selectionManager = new SelectionManager(this, false, amatNC);
+        selectionManager = new AMATSelectionManager(this, false, mv, amatNC);
         initialMoveDelay = Main.pref.getInteger("edit.initial-move-delay", 200);
         initialMoveThreshold = Main.pref.getInteger("edit.initial-move-threshold", 5);
     }
@@ -427,8 +427,8 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
     public void mousePressed(MouseEvent e) {
         mouseDownButton = e.getButton();
         // return early
-        if (!mv.isActiveLayerVisible() || !(Boolean) this.getValue("active") || mouseDownButton != MouseEvent.BUTTON1)
-            return;
+//        if (!mv.isActiveLayerVisible() || !(Boolean) this.getValue("active") || mouseDownButton != MouseEvent.BUTTON1)
+//            return;
 
         // left-button mouse click only is processed here
 
@@ -650,7 +650,8 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
             }
         }
 
-        mode = null;
+//        mode = null;
+        mode = Mode.select;
 
         // simply remove any highlights if the middle click popup is active because
         // the highlights don't depend on the cursor position there. If something was
