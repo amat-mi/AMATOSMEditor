@@ -61,9 +61,6 @@ public class AMATOSMEditorPlugin extends Plugin implements LayerChangeListener {
 		this.mapFrame = newFrame;
 
 		if(this.mapFrame != null) {
-			//NOOO!!! Do not use this right now, it is not complete, nor working!!!			
-			//			this.mapFrame.addMapMode(new IconToggleButton(new AMATSelectAction(this.mapFrame)));
-
 			MapView.addLayerChangeListener(this);
 			MapView.addLayerChangeListener(downloadAction);
 			downloadAction.setMapView(this.mapFrame.mapView);

@@ -4,17 +4,28 @@ package org.openstreetmap.josm.plugins.amatosmeditor.gui.dialogs;
 import static org.openstreetmap.josm.tools.I18n.tr;
 import static org.openstreetmap.josm.tools.I18n.trn;
 
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.GridBagLayout;
 import java.lang.reflect.Method;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
+import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
+import javax.swing.text.BadLocationException;
+import javax.swing.text.DefaultHighlighter.DefaultHighlightPainter;
+import javax.swing.text.Highlighter;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.conflict.Conflict;
@@ -43,10 +54,13 @@ import org.openstreetmap.josm.tools.WindowGeometry;
  */
 public class AMATComparePrimitiveDialog extends ExtendedDialog {
 
-	private OsmPrimitive primitive1;
-	private OsmPrimitive primitive2;
+	private OsmPrimitive primitive1;	//the left primitive to compare and confirm
+	private OsmPrimitive primitive2;	//the right primitive to compare and confirm
 	private Layer layer;
     private boolean askConfirmation;	//wherever to show confirmation buttons, or cancel only
+	private Set<String> keysToAdd;		//the keys of tags that will be added to the left primitive
+	private Set<String> keysToChange;	//the keys of tags that will be changed in the left primitive
+	private Set<String> keysToRemove;	//the keys of tags that will be removed from the left primitive
     
     public static final int VALUE_ALL = 1;
     public static final int VALUE_GEOM_LOCREF = 2;
@@ -55,8 +69,16 @@ public class AMATComparePrimitiveDialog extends ExtendedDialog {
     public static final int VALUE_TAGS = 5;
     public static final int VALUE_CANCELLED = VALUE_TAGS + 1; 
 
-    public AMATComparePrimitiveDialog(OsmPrimitive primitive1, OsmPrimitive primitive2, Layer layer,
-    		boolean askConfirmation) {
+    public AMATComparePrimitiveDialog(OsmPrimitive primitive1, OsmPrimitive primitive2,
+    		Layer layer,boolean askConfirmation) {
+    	this(primitive1,primitive2,null,null,null,layer,askConfirmation);
+    }
+    
+    public AMATComparePrimitiveDialog(OsmPrimitive primitive1, OsmPrimitive primitive2,
+    		AbstractMap<String, String> tagsToAdd,
+			AbstractMap<String, String> tagsToChange,
+			AbstractMap<String, String> tagsToRemove,
+    		Layer layer,boolean askConfirmation) {
         super(Main.parent, 
         		askConfirmation ?
         				tr("Compare OSM and AMAT ways and confirm updating") :
@@ -76,6 +98,9 @@ public class AMATComparePrimitiveDialog extends ExtendedDialog {
         this.primitive2 = primitive2;
         this.layer = layer;
         this.askConfirmation = askConfirmation;
+		this.keysToAdd = tagsToAdd != null ? tagsToAdd.keySet() : null;
+		this.keysToChange = tagsToChange != null ? tagsToChange.keySet() : null;
+		this.keysToRemove = tagsToRemove != null ? tagsToRemove.keySet() : null;
         
         setRememberWindowGeometry(getClass().getName() + ".geometry",
                 WindowGeometry.centerInWindow(Main.parent, new Dimension(750, 550)));
@@ -117,8 +142,10 @@ public class AMATComparePrimitiveDialog extends ExtendedDialog {
     
     protected Component buildDataPanel() {
         JPanel p = new JPanel(new GridBagLayout());
-        p.add(buildDataTextArea(primitive1), GBC.std(0,0).weight(0.1,1.0).fill(GBC.BOTH));
-        p.add(buildDataTextArea(primitive2), GBC.std(1,0).weight(0,1.0).fill(GBC.BOTH));
+        p.add(new JLabel("OSM Way"), GBC.std(0,0).weight(0.1,1.0).fill(GBC.NONE));
+        p.add(new JLabel("AMAT Way"), GBC.std(1,0).weight(0,1.0).fill(GBC.NONE));
+        p.add(buildDataTextArea(primitive1), GBC.std(0,1).weight(0.1,1.0).fill(GBC.BOTH));
+        p.add(buildDataTextArea(primitive2), GBC.std(1,1).weight(0,1.0).fill(GBC.BOTH));
         JScrollPane scroll = new JScrollPane(p);
         p = new JPanel(new GridBagLayout());
         p.add(scroll, GBC.std().fill(GBC.BOTH));
@@ -127,31 +154,51 @@ public class AMATComparePrimitiveDialog extends ExtendedDialog {
     }
 
     protected JosmTextArea buildDataTextArea(OsmPrimitive primitive) {
-        DataText dt = new DataText();
-        dt.addPrimitive(primitive);
         JosmTextArea txtData = new JosmTextArea();
+
+        DataText dt = new DataText(txtData);
+        dt.addPrimitive(primitive);
+        //highlight
+        dt.highlite(keysToAdd, Color.GREEN);
+        dt.highlite(keysToChange, Color.YELLOW);
+        dt.highlite(keysToRemove, Color.RED);
+        
         txtData.setLineWrap(true);
         txtData.setFont(new Font("Monospaced", txtData.getFont().getStyle(), txtData.getFont().getSize()));
         txtData.setEditable(false);
-        txtData.setText(dt.toString());
         txtData.setSelectionStart(0);
         txtData.setSelectionEnd(0);
-        
+
         return txtData;
     }
 
     class DataText {
-        static final String INDENT = "  ";
+    	private JTextArea textComp;
+    	private Map<String,int[]> tagsPos = new HashMap<String,int[]>();
+    	
+        /**
+		 * @param textComp
+		 */
+		public DataText(JTextArea textComp) {
+			super();
+			this.textComp = textComp;
+		}
+
+		static final String INDENT = "  ";
         static final String NL = "\n";
 
-        private StringBuilder s = new StringBuilder();
-
+        private JTextArea append(String str) {
+        	textComp.append(str);
+        	
+        	return textComp;
+        }
+        
         private DataText add(String title, String... values) {
-            s.append(INDENT).append(title);
+            append(INDENT).append(title);
             for (String v : values) {
-                s.append(v);
+                append(v);
             }
-            s.append(NL);
+            append(NL);
             return this;
         }
 
@@ -163,27 +210,46 @@ public class AMATComparePrimitiveDialog extends ExtendedDialog {
             }
         }
 
+        public void highlite(Set<String> keys,Color color) {
+        	if(keys != null && !keys.isEmpty()) {                
+            	Highlighter hilite = textComp.getHighlighter();
+            	try {
+            		for (String key : keys) {
+						if(tagsPos.containsKey(key)) {
+	            			int [] pos = tagsPos.get(key);
+	        				hilite.addHighlight(pos[0], pos[1], new DefaultHighlightPainter(color));												
+						}
+					}
+    			} catch (BadLocationException e) {
+    				// TODO Auto-generated catch block
+    				e.printStackTrace();
+    			}        		
+        	}
+        }
+        
         public void addPrimitive(OsmPrimitive o) {
 
             addHeadline(o);
 
             if (!(o.getDataSet() != null && o.getDataSet().getPrimitiveById(o) != null)) {
-                s.append(NL).append(INDENT).append(tr("not in data set")).append(NL);
+                append(NL).append(INDENT);
+                append(tr("not in data set")).append(NL);
                 return;
             }
             if (o.isIncomplete()) {
-                s.append(NL).append(INDENT).append(tr("incomplete")).append(NL);
+                append(NL).append(INDENT);
+                append(tr("incomplete")).append(NL);
                 return;
             }
-            s.append(NL);
+            append(NL);
 
             addState(o);
             addCommon(o);
             addAttributes(o);
             addSpecial(o);
-            addReferrers(s, o);
+            addReferrers(o);
             addConflicts(o);
-            s.append(NL);
+            append(NL);
         }
 
         void addHeadline(OsmPrimitive o) {
@@ -193,20 +259,20 @@ public class AMATComparePrimitiveDialog extends ExtendedDialog {
 
         void addType(OsmPrimitive o) {
             if (o instanceof Node) {
-                s.append(tr("Node: "));
+                append(tr("Node: "));
             } else if (o instanceof Way) {
-                s.append(tr("Way: "));
+                append(tr("Way: "));
             } else if (o instanceof Relation) {
-                s.append(tr("Relation: "));
+                append(tr("Relation: "));
             }
         }
 
         void addNameAndId(OsmPrimitive o) {
             String name = o.get("name");
             if (name == null) {
-                s.append(o.getUniqueId());
+                append(String.valueOf(o.getUniqueId()));
             } else {
-                s.append(getNameAndId(name, o.getUniqueId()));
+                append(getNameAndId(name, o.getUniqueId()));
             }
         }
 
@@ -251,15 +317,18 @@ public class AMATComparePrimitiveDialog extends ExtendedDialog {
             add(tr("In changeset: "), Integer.toString(o.getChangesetId()));
         }
 
-        void addAttributes(OsmPrimitive o) {
+        void addAttributes(OsmPrimitive o) {        	
             if (o.hasKeys()) {
                 add(tr("Tags: "));
                 List<String> keys = new ArrayList<String>(o.keySet());
                 Collections.sort(keys);
                 for (String key : keys) {
-                    s.append(INDENT).append(INDENT);
-                    s.append(String.format("\"%s\"=\"%s\"%n", key, o.get(key)));
-                }
+                    append(INDENT).append(INDENT);
+                	int startPos = textComp.getCaretPosition();
+                    append(String.format("\"%s\"=\"%s\"%n", key, o.get(key)));
+                	int endPos = textComp.getCaretPosition();
+                	tagsPos.put(key, new int[]{startPos,endPos});
+                }                
             }
         }
 
@@ -280,19 +349,19 @@ public class AMATComparePrimitiveDialog extends ExtendedDialog {
         void addRelationMembers(Relation r) {
             add(trn("{0} Member: ", "{0} Members: ", r.getMembersCount(), r.getMembersCount()));
             for (RelationMember m : r.getMembers()) {
-                s.append(INDENT).append(INDENT);
+                append(INDENT).append(INDENT);
                 addHeadline(m.getMember());
-                s.append(tr(" as \"{0}\"", m.getRole()));
-                s.append(NL);
+                append(tr(" as \"{0}\"", m.getRole()));
+                append(NL);
             }
         }
 
         void addWayNodes(Way w) {
             add(tr("{0} Nodes: ", w.getNodesCount()));
             for (Node n : w.getNodes()) {
-                s.append(INDENT).append(INDENT);
+                append(INDENT).append(INDENT);
                 addNameAndId(n);
-                s.append(NL);
+                append(NL);
             }
         }
 
@@ -322,14 +391,14 @@ public class AMATComparePrimitiveDialog extends ExtendedDialog {
             }
         }
 
-        void addReferrers(StringBuilder s, OsmPrimitive o) {
+        void addReferrers(OsmPrimitive o) {
             List<OsmPrimitive> refs = o.getReferrers();
             if (!refs.isEmpty()) {
                 add(tr("Part of: "));
                 for (OsmPrimitive p : refs) {
-                    s.append(INDENT).append(INDENT);
+                    append(INDENT).append(INDENT);
                     addHeadline(p);
-                    s.append(NL);
+                    append(NL);
                 }
             }
         }
@@ -348,7 +417,7 @@ public class AMATComparePrimitiveDialog extends ExtendedDialog {
 
         @Override
         public String toString() {
-            return s.toString();
+            return textComp.getText();
         }
     }
 }

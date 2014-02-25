@@ -24,7 +24,7 @@ public class AMATPreferenceSetting extends DefaultTabPreferenceSetting {
     private JosmTextField tfOsmServerUrl;
 	
     public AMATPreferenceSetting() {
-    	super("connection", tr("AMAT Connection Settings"), tr("Connection Settings for the AMATOSM server."));
+    	super("amat-logo-60", tr("AMAT Connection Settings"), tr("Connection Settings for the AMATOSM server."));
     }
 	
 	@Override

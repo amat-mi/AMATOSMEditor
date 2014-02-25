@@ -86,12 +86,16 @@ public class CopyWayAction extends BaseWayAction
 		if( amatWay == null)
 			return;
 
+		//Seperate maps of key/value pair for tags to add, change, or remove
+		AbstractMap<String, String> tagsToAdd = new HashMap<String,String>();
+		AbstractMap<String, String> tagsToChange = new HashMap<String,String>();
+		AbstractMap<String, String> tagsToRemove = new HashMap<String,String>();
+		
 		//Copy over tags from AMAT to OSM Way, excluding keys like "AMAT%" and keys that must not be exported
 		//Ignore tag already present in OSM Way with the same value as in AMAT Way
 		//Set a flag if any tag was already present in OSM Way with a different value		
 		Set<String> tagsDoNotExport = new HashSet<String>();
 		tagsDoNotExport.add("highway");		
-		AbstractMap<String, String> tagsToSet = new HashMap<String,String>();
 		boolean needConfirmation = false;
 		for (String key : amatWay.keySet()) {
 			if(!key.startsWith("AMAT"))
@@ -100,16 +104,16 @@ public class CopyWayAction extends BaseWayAction
 					if(osmWay.hasKey(key)) {
 						String osmValue = osmWay.get(key);
 						if((osmValue == null && amatValue != null) || (osmValue != null && amatValue == null)) {
-							tagsToSet.put(key, amatValue);
+							tagsToChange.put(key, amatValue);
 							needConfirmation = true;
 						} else if(osmValue != null && amatValue != null) {
 							if(osmValue.compareTo(amatValue) != 0) {
-								tagsToSet.put(key, amatValue);		
+								tagsToChange.put(key, amatValue);		
 								needConfirmation = true;
 							}
 						}
 					} else
-						tagsToSet.put(key, amatValue);
+						tagsToAdd.put(key, amatValue);
 				}
 		}
 
@@ -120,7 +124,7 @@ public class CopyWayAction extends BaseWayAction
 		tagsRemoveIfAbsent.add("oneway");
 		for (String key : tagsRemoveIfAbsent) {
 			if(!amatWay.hasKey(key) && osmWay.hasKey(key)) {
-				tagsToSet.put(key, null);
+				tagsToRemove.put(key, null);
 				needConfirmation = true;
 			}
 		}
@@ -133,7 +137,9 @@ public class CopyWayAction extends BaseWayAction
 		//If any tag to change or to delete in OSM Way, show comparison dialog and check for confirmation
 		//NOOO!!! Always show the confirmation dialog!!!
 		if(needConfirmation || true) {
-			AMATComparePrimitiveDialog dialog = new AMATComparePrimitiveDialog(osmWay,amatWay, null, true);
+			AMATComparePrimitiveDialog dialog = new AMATComparePrimitiveDialog(osmWay,amatWay,
+					tagsToAdd,tagsToChange,tagsToRemove,
+					null, true);
 			dialog.showDialog();
 			if(dialog.isCancelled() )
 				return;
@@ -146,7 +152,13 @@ public class CopyWayAction extends BaseWayAction
 		//Create a list of commands to submit as a sequence to the undo/redo system
 		List<Command> commands = new ArrayList<Command>();
 		
-		//if any change or deletion of tags
+		//put together additions, changes and deletions of tags
+		AbstractMap<String, String> tagsToSet = new HashMap<String,String>();
+		tagsToSet.putAll(tagsToAdd);
+		tagsToSet.putAll(tagsToChange);
+		tagsToSet.putAll(tagsToRemove);
+
+		//if any addition, change, or deletion of tags
 		if(!tagsToSet.isEmpty()) {
 			//If change of tags confirmed add a command for tags changes
 			if(tagsConfirmed)
