@@ -48,7 +48,7 @@ public abstract class BaseWayAction extends JosmAction implements SelectionChang
 	}
 
 	protected Set<Way> findWays(Node wayNode) {
-		double BUFFER_SIZE = 0.00005;
+		double BUFFER_SIZE = 0.00002;
 
 		BBox bbox = wayNode.getBBox();		
 		bbox.addPrimitive(wayNode, BUFFER_SIZE);
