@@ -54,6 +54,7 @@ import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.plugins.amatosmeditor.gui.AMATNavigatableComponent;
 import org.openstreetmap.josm.plugins.amatosmeditor.gui.AMATSelectionManager;
 import org.openstreetmap.josm.plugins.amatosmeditor.gui.AMATSelectionManager.SelectionEnded;
+import org.openstreetmap.josm.plugins.amatosmeditor.gui.dialogs.AMATInspectPrimitiveDialog;
 import org.openstreetmap.josm.plugins.amatosmeditor.gui.layer.AMATOsmDataLayer;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Pair;
@@ -73,6 +74,7 @@ import org.openstreetmap.josm.tools.Shortcut;
 public class AMATSelectAction extends MapMode implements AWTEventListener, SelectionEnded {
 	private static final long serialVersionUID = 1L;
 
+	protected Layer layer;
 	protected DataSet dataSet;
 	protected AMATNavigatableComponent amatNC;
 		
@@ -83,11 +85,13 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
 	}
 	
 	public void setLayer(Layer newLayer) {
-		dataSet = null;
-		try {
+		layer = null;
+		dataSet = null;		
+		try {			
 			Field field = newLayer.getClass().getField("data");
 			dataSet = (DataSet)field.get(newLayer);
 			amatNC.setDataSet(dataSet);
+			layer = newLayer;
 		} catch (Exception e) {
 		}
 		updateEnabledState();
@@ -192,14 +196,14 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
      * @param mapFrame The MapFrame this action belongs to.
      */
     public AMATSelectAction(MapFrame mapFrame) {
-        super(tr("Select AMAT"), "move/move", tr("Select AMAT objects"),
+        super(tr("Select AMAT"), "amat-select-action", tr("Select AMAT objects"),
                 Shortcut.registerShortcut("mapmode:amatselect", tr("Mode: {0}", tr("Select AMAT")), 
-                		KeyEvent.VK_S, Shortcut.CTRL_SHIFT),
+                		KeyEvent.VK_W, Shortcut.CTRL_SHIFT),
                 mapFrame,
                 ImageProvider.getCursor("normal", "selection"));
         mv = mapFrame.mapView;
-//        putValue("help", ht("/Action/Select"));
-        amatNC = new AMATNavigatableComponent();
+//        putValue("help", ht("/Action/Select"));        
+        amatNC = new AMATNavigatableComponent(mv);
         selectionManager = new AMATSelectionManager(this, false, mv, amatNC);
         initialMoveDelay = Main.pref.getInteger("edit.initial-move-delay", 200);
         initialMoveThreshold = Main.pref.getInteger("edit.initial-move-threshold", 5);
@@ -668,7 +672,12 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
     @Override
     public void selectionEnded(Rectangle r, MouseEvent e) {
         updateKeyModifiers(e);
-        selectPrims(selectionManager.getSelectedObjects(alt), true, true);
+        Collection<OsmPrimitive> selected = selectionManager.getSelectedObjects(alt);
+        selectPrims(selected, true, true);
+        if(selected != null & !selected.isEmpty()) {
+        	AMATInspectPrimitiveDialog dialog = new AMATInspectPrimitiveDialog(selected, layer);
+        	dialog.showDialog();
+        }        	
     }
 
     /**
