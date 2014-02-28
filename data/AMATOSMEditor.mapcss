@@ -1,10 +1,32 @@
 /*
   Archi del grafo AMAT
 */
-way[loc_ref][AMAT] 
+way[AMAT]
 {  
 	width: 10;
-	color: grey;
+	color: #888888;
+	text: auto;
+	text-position: line;
+	text-color: blue;
+	font-weight: normal;
+	font-size: 12;
+}
+
+/*
+  Archi del grafo AMAT esclusivamente tramviari
+*/
+way[AMAT:tram:only?]
+{  
+	color: #cc88cc;
+	dashes: 50, 10
+}
+
+/*
+  Archi del grafo AMAT non esclusivamente tramviari
+*/
+way[AMAT:tram:also?]
+{  
+	color: #cc88cc;
 }
 
 /*
