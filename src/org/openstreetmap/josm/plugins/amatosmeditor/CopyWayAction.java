@@ -82,6 +82,10 @@ public class CopyWayAction extends BaseWayAction
 		if(!isEnabled())
 			return;
 		
+		Way osmWay = findOSMWay();
+		if( osmWay == null)
+			return;
+		
 		Way amatWay = findAMATWay();
 		if( amatWay == null)
 			return;
@@ -246,10 +250,11 @@ public class CopyWayAction extends BaseWayAction
 			}
 		}
 		
-//		osmWay.getDataSet().beginUpdate();
-//		osmWay.getDataSet().endUpdate();
 		//If there actually is some command to execute, add a sequence to the undo/redo system 
 		if(!commands.isEmpty())
 			Main.main.undoRedo.add(new SequenceCommand(tr("AMATEditor"),commands));
+		
+		//Clear the AMAT layer selection, in case we used it, so that it does not interfere with next operation
+		srcDataSet.clearSelection();
 	}
 }

@@ -29,11 +29,15 @@ public class CompareWayAction extends BaseWayAction
 		if(!isEnabled())
 			return;
 		
+		Way osmWay = findOSMWay();
+		if( osmWay == null)
+			return;
+		
 		Way amatWay = findAMATWay();
+		if( amatWay == null)
+			return;
 
-		if( amatWay != null) {
-			AMATComparePrimitiveDialog dialog = new AMATComparePrimitiveDialog(osmWay,amatWay, null, false);
-			dialog.showDialog();
-		}
+		AMATComparePrimitiveDialog dialog = new AMATComparePrimitiveDialog(osmWay,amatWay, null, false);
+		dialog.showDialog();
 	}
 }

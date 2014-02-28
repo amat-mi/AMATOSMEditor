@@ -9,6 +9,7 @@ import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.gui.MapView.LayerChangeListener;
 import org.openstreetmap.josm.gui.layer.Layer;
+import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.preferences.PreferenceSetting;
 import org.openstreetmap.josm.plugins.Plugin;
 import org.openstreetmap.josm.plugins.PluginInformation;
@@ -64,10 +65,8 @@ public class AMATOSMEditorPlugin extends Plugin implements LayerChangeListener {
 			MapView.addLayerChangeListener(this);
 			MapView.addLayerChangeListener(downloadAction);
 			downloadAction.setMapView(this.mapFrame.mapView);
-			if(selectAction == null || true) {
-				selectAction = new AMATSelectAction(this.mapFrame);
-				this.mapFrame.addMapMode(new IconToggleButton(selectAction));
-			}
+			selectAction = new AMATSelectAction(this.mapFrame);
+			this.mapFrame.addMapMode(new IconToggleButton(selectAction));
 		}
 	}
 
@@ -77,8 +76,10 @@ public class AMATOSMEditorPlugin extends Plugin implements LayerChangeListener {
 	 */
 	@Override
 	public void activeLayerChange(Layer oldLayer, Layer newLayer) {
-		// TODO Auto-generated method stub
-
+		if(newLayer instanceof OsmDataLayer) {
+			copyAction.setDstLayer(newLayer);
+			compareAction.setDstLayer(newLayer);
+		}
 	}
 
 	/**
@@ -87,8 +88,8 @@ public class AMATOSMEditorPlugin extends Plugin implements LayerChangeListener {
 	@Override
 	public void layerAdded(Layer newLayer) {
 		if(newLayer instanceof AMATOsmDataLayer) {
-			copyAction.setLayer(newLayer);
-			compareAction.setLayer(newLayer);
+			copyAction.setSrcLayer(newLayer);
+			compareAction.setSrcLayer(newLayer);
 			selectAction.setLayer(newLayer);
 			mapFrame.mapView.moveLayer(newLayer, 99999);
 		}
@@ -100,11 +101,10 @@ public class AMATOSMEditorPlugin extends Plugin implements LayerChangeListener {
 	@Override
 	public void layerRemoved(Layer oldLayer) {
 		if(oldLayer instanceof AMATOsmDataLayer) {
-			copyAction.setLayer(null);
-			compareAction.setLayer(null);
+			copyAction.setSrcLayer(null);
+			compareAction.setSrcLayer(null);
 			selectAction.setLayer(null);
 		}
 	}
-
 	///////////
 }

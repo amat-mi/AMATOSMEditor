@@ -5,6 +5,7 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
 import javax.swing.JOptionPane;
@@ -21,12 +22,12 @@ import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.tools.Shortcut;
 
-public abstract class BaseWayAction extends JosmAction implements SelectionChangedListener
+public abstract class BaseWayAction extends JosmAction
 {
 	private static final long serialVersionUID = -3508864293222033185L;
 	
-	protected DataSet dataSet;
-	protected Way osmWay = null;
+	protected DataSet srcDataSet;
+	protected DataSet dstDataSet;
 
 	/**
 	 * @param name
@@ -43,58 +44,141 @@ public abstract class BaseWayAction extends JosmAction implements SelectionChang
 		super(name, iconName, tooltip, shortcut, registerInToolbar, toolbarId,
 				installAdapters);
 		
-		DataSet.addSelectionListener(this);
-		setEnabled(false);
+		updateEnabledState();
 	}
 
-	protected Set<Way> findWays(Node wayNode) {
-		double BUFFER_SIZE = 0.00002;
+	/**
+	 * Search for Ways that are referrers of any Node near the specified one.
+	 * Try with a bigger buffer around the specified Node first, and try with smaller ones 
+	 * only if more than one Node found nearby.
+	 * Give up as soon as no Node is found inside the buffer.
+	 * Note that only first and last Nodes of Ways are considered for matching.
+	 * @param wayNode
+	 * @return A Set of all the Ways found to be referrers of a Node near the specified one.
+	 */
+	protected Set<Way> findWays(Node wayNode) {		
+		double BUFFER_SIZE = 0.00005;
+		while(BUFFER_SIZE >= 0.000008) {
+			BBox bbox = wayNode.getBBox();
+			bbox.addPrimitive(wayNode, BUFFER_SIZE);
+			List<Node> nodes = srcDataSet.searchNodes(bbox);
+			if(nodes.isEmpty())			//if no Node found
+				return null;				//no point trying a smaller buffer
 
-		BBox bbox = wayNode.getBBox();		
-		bbox.addPrimitive(wayNode, BUFFER_SIZE);
+			Set<Node> foundNodes = new LinkedHashSet<Node>();
+			Set<Way> foundWays = new LinkedHashSet<Way>();
+			for (Node node : nodes)			
+				for (Way way : OsmPrimitive.getFilteredSet(node.getReferrers(), Way.class))
+					if(way.isFirstLastNode(node)) {
+						foundNodes.add(node);			//add Node to set of first/last Nodes
+						foundWays.add(way);				//add Ways to set of Way found by first/last Node
+					}
+			
+			if(foundNodes.size() == 1)			//if exactly one first/last Node found
+				return foundWays;					//return found Ways
+			
+			BUFFER_SIZE *= 0.8;					//try with a smaller box size
+		}		
 		
-		Set<Way> ways = new LinkedHashSet<Way>();
-		for (Node node : dataSet.searchNodes(bbox)) {
-			ways.addAll(OsmPrimitive.getFilteredSet(node.getReferrers(), Way.class));
-		}
-		
-		return ways;
+		return null;
 	}
 
+	/**
+	 * Check if the two specified Ways have the same geometric direction.
+	 * The test is made by comparing the absolute value of the difference of the headings of the two Ways.
+	 * If the heading first-to-last Node of the first Way is more similar to the heading last-to-first Node of the second Way, 
+	 * than it is to the heading first-to-last Node of the second Way, the two Ways are considered not having the same direction.   
+	 * @param way1 The first Way to check
+	 * @param way2 The second Way to check
+	 * @return true if the two specified Ways have the same geometric direction
+	 */
+	protected boolean haveSameDirection(Way way1,Way way2) {
+		LatLon first1 = way1.firstNode().getCoor();
+		LatLon last1 = way1.lastNode().getCoor();
+		LatLon first2 = way2.firstNode().getCoor();
+		LatLon last2 = way2.lastNode().getCoor();		
+		double heading1 = first1.heading(last1);
+		double diffNormal = Math.abs(heading1 - first2.heading(last2));
+		double diffInverted = Math.abs(heading1 - last2.heading(first2));
+		
+		return diffNormal <= diffInverted;
+	}
+
+	/**
+	 * Check if the two specified Ways are "too far away" from one another.
+	 * The test is made by comparing the distances of the first and last Node of each Way.
+	 * If first Nodes or last Nodes are too distant, the two Ways are considered to be too far away.   
+	 * @param way1 The first Way to check
+	 * @param way2 The second Way to check
+	 * @return true if the two specified Ways have the same geometric direction
+	 */
+	protected boolean tooFarAway(Way way1,Way way2,double maxDistance) {
+		if(way1.firstNode().getCoor().greatCircleDistance(way2.firstNode().getCoor()) > maxDistance)
+			return true;
+		
+		if(way1.lastNode().getCoor().greatCircleDistance(way2.lastNode().getCoor()) > maxDistance)
+			return true;
+		
+		return false;
+	}
+
+	protected Way findOSMWay() {
+		if(!isEnabled())
+			return null;
+
+		Collection<Way> selectedWays = dstDataSet.getSelectedWays();
+		return selectedWays.size() == 1 ? selectedWays.iterator().next() : null;
+	}
+	
 	protected Way findAMATWay() {
 		if(!isEnabled())
 			return null;
 
-		Set<Way> ways = findWays(osmWay.firstNode());
-		if(ways.isEmpty()) {
-			JOptionPane.showMessageDialog(Main.parent, tr("No AMAT way found for origin node"));
+		Way osmWay = findOSMWay();
+		if( osmWay == null)
 			return null;
-		}
 		
-		Set<Way> ways2 = findWays(osmWay.lastNode());
-		if(ways2.isEmpty()) {
-			JOptionPane.showMessageDialog(Main.parent, tr("No AMAT way found for destination node"));
-			return null;
-		}
+		Way amatWay = null;					//by default no single AMAT Way found 
 		
-		ways.retainAll(ways2);
-		if(ways.isEmpty()) {
-			JOptionPane.showMessageDialog(Main.parent, tr("No AMAT way found for origin and destination nodes"));
-			return null;
-		}
+		//If a single AMAT Way is selected, use that, otherwise search for a Way by near Nodes
+		Collection<Way> selectedWays = srcDataSet.getSelectedWays();
+		if(selectedWays.size() == 1)
+			amatWay = selectedWays.iterator().next();
+		else {
+			Set<Way> ways = findWays(osmWay.firstNode());
+			if(ways == null) {
+				JOptionPane.showMessageDialog(Main.parent, tr("No AMAT way found for origin node"));
+				return null;
+			}
+			
+			Set<Way> ways2 = findWays(osmWay.lastNode());
+			if(ways2 == null) {
+				JOptionPane.showMessageDialog(Main.parent, tr("No AMAT way found for destination node"));
+				return null;
+			}
+			
+			ways.retainAll(ways2);
+			if(ways.isEmpty()) {
+				JOptionPane.showMessageDialog(Main.parent, tr("No AMAT way found for origin and destination nodes"));
+				return null;
+			}
 
-		if(ways.size() != 1) {
-			JOptionPane.showMessageDialog(Main.parent, tr("Multiple AMAT ways found for origin and destination nodes"));
-			return null;
+			if(ways.size() != 1) {
+				JOptionPane.showMessageDialog(Main.parent, tr("Multiple AMAT ways found for origin and destination nodes"));
+				return null;
+			}
+
+			amatWay = ways.iterator().next(); 
 		}
 		
-		Way amatWay = ways.iterator().next(); 
-		LatLon amatFirst = amatWay.firstNode().getCoor();
-		LatLon amatLast = amatWay.lastNode().getCoor();
-		LatLon osmFirst = osmWay.firstNode().getCoor();
-		if(osmFirst.distance(amatFirst) > osmFirst.distance(amatLast)) {
-			JOptionPane.showMessageDialog(Main.parent, tr("OSM and AMAT ways have opposite geometry directions"));
-			return null;
+		if(!haveSameDirection(osmWay, amatWay)) {
+			JOptionPane.showMessageDialog(Main.parent, tr("OSM and AMAT ways have opposite geometric direction"));
+			return null;			
+		}
+		
+		if(tooFarAway(osmWay, amatWay, 100)) {
+			JOptionPane.showMessageDialog(Main.parent, tr("OSM and AMAT are too far away"));
+			return null;			
 		}
 		
 		return amatWay;
@@ -103,34 +187,27 @@ public abstract class BaseWayAction extends JosmAction implements SelectionChang
 	@Override
 	protected void updateEnabledState() {
 		super.updateEnabledState();
-		setEnabled(dataSet != null && osmWay != null);
+		setEnabled(srcDataSet != null && dstDataSet != null);
 	}
 
-	public void setLayer(Layer newLayer) {
-		dataSet = null;
+	public DataSet getDataSetFromLayer(Layer layer) {
 		try {
-			Field field = newLayer.getClass().getField("data");
-			dataSet = (DataSet)field.get(newLayer);
+			Field field = layer.getClass().getField("data");
+			
+			return (DataSet)field.get(layer);
 		} catch (Exception e) {
 		}
+		
+		return null;
+	}
+	
+	public void setSrcLayer(Layer layer) {
+		srcDataSet = getDataSetFromLayer(layer);
 		updateEnabledState();
 	}
 	
-	/////////// SelectionChangedListener
-	
-	@Override
-	public void selectionChanged(Collection<? extends OsmPrimitive> newSelection)
-	{
-		osmWay = null;
-		if ((newSelection != null && newSelection.size() == 1))
-		{
-			OsmPrimitive primitive = newSelection.iterator().next();
-			if(primitive instanceof Way)
-				osmWay = (Way)primitive;
-		}
-
+	public void setDstLayer(Layer layer) {
+		dstDataSet = getDataSetFromLayer(layer);
 		updateEnabledState();
-	}    
-
-	///////////
+	}	
 }

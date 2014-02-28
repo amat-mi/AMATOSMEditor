@@ -152,32 +152,12 @@ public class AMATDownloadAction extends JosmAction implements LayerChangeListene
 		for (OsmDataLayer layer : mapView.getLayersOfType(OsmDataLayer.class)) {
 			for (Bounds bound : layer.data.getDataSourceBounds()) {
 				if(!bound.isCollapsed()) { 
-					//String url = "http://127.0.0.1:8000/osm/api/0.6/map/?bbox=9.100331411844676,45.437485608042365,9.168995962623184,45.46458092725076";
-					//String url = String.format("http://127.0.0.1:8000/osm/api/0.6/map/?bbox=%s",bound.toBBox().toStringCSV(","));
 					String url = String.format("%s/0.6/map/?bbox=%s",amatosmUrl,bound.toBBox().toStringCSV(","));
 					openUrl(url,deletePreviousData);
 					deletePreviousData = false;
 				}			
 			}
 		}
-
-//		boolean deletePreviousData = true;
-//		for (OsmDataLayer layer : this.mapView.getLayersOfType(OsmDataLayer.class)) {
-//			Bounds allbounds = null;
-//			for (Bounds bound : layer.data.getDataSourceBounds()) {
-//				if(allbounds == null)
-//					allbounds = new Bounds(bound);
-//				else
-//					allbounds.extend(bound);
-//			}
-//
-//			if(allbounds != null && !allbounds.isCollapsed()) { 
-//				//				String url = "http://127.0.0.1:8000/osm/api/0.6/map/?bbox=9.100331411844676,45.437485608042365,9.168995962623184,45.46458092725076";
-//				String url = String.format("http://127.0.0.1:8000/osm/api/0.6/map/?bbox=%s",allbounds.toBBox().toStringCSV(","));
-//				openUrl(url,deletePreviousData);
-//				deletePreviousData = false;
-//			}			
-//		}
 	}
 	
 	/**

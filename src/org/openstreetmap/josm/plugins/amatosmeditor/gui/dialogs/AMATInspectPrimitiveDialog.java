@@ -228,13 +228,15 @@ public class AMATInspectPrimitiveDialog extends ExtendedDialog {
             add(tr("In changeset: "), Integer.toString(o.getChangesetId()));
         }
 
-        void addAttributes(OsmPrimitive o) {
+        void addAttributes(OsmPrimitive o) {        	
             if (o.hasKeys()) {
                 add(tr("Tags: "));
-                for (String key : o.keySet()) {
+                List<String> keys = new ArrayList<String>(o.keySet());
+                Collections.sort(keys);
+                for (String key : keys) {
                     s.append(INDENT).append(INDENT);
                     s.append(String.format("\"%s\"=\"%s\"%n", key, o.get(key)));
-                }
+                }                
             }
         }
 
