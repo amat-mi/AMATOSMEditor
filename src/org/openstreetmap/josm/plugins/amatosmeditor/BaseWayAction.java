@@ -1,5 +1,10 @@
 package org.openstreetmap.josm.plugins.amatosmeditor;
 
+import static java.lang.Math.PI;
+import static java.lang.Math.atan2;
+import static java.lang.Math.cos;
+import static java.lang.Math.sin;
+import static java.lang.Math.toRadians;
 import static org.openstreetmap.josm.tools.I18n.tr;
 
 import java.lang.reflect.Field;
@@ -85,9 +90,10 @@ public abstract class BaseWayAction extends JosmAction
 
 	/**
 	 * Check if the two specified Ways have the same geometric direction.
-	 * The test is made by comparing the absolute value of the difference of the headings of the two Ways.
-	 * If the heading first-to-last Node of the first Way is more similar to the heading last-to-first Node of the second Way, 
-	 * than it is to the heading first-to-last Node of the second Way, the two Ways are considered not having the same direction.   
+	 * The test is made by turning the heading of the second Way by the same amount that is needed to have
+	 * the first heading point towards 90° (PI / 2). 
+	 * If the second heading is between 0° and 180° (0 and PI), it means the difference between the two headings 
+	 * is no more than 90°, so they have the same direction. 
 	 * @param way1 The first Way to check
 	 * @param way2 The second Way to check
 	 * @return true if the two specified Ways have the same geometric direction
@@ -96,12 +102,12 @@ public abstract class BaseWayAction extends JosmAction
 		LatLon first1 = way1.firstNode().getCoor();
 		LatLon last1 = way1.lastNode().getCoor();
 		LatLon first2 = way2.firstNode().getCoor();
-		LatLon last2 = way2.lastNode().getCoor();		
-		double heading1 = first1.heading(last1);
-		double diffNormal = Math.abs(heading1 - first2.heading(last2));
-		double diffInverted = Math.abs(heading1 - last2.heading(first2));
+		LatLon last2 = way2.lastNode().getCoor();
+		double h1 = first1.heading(last1);
+		double h2 = first2.heading(last2);
+		h2 = (h2 + PI / 2 - h1) % (2 * PI);
 		
-		return diffNormal <= diffInverted;
+		return h2 >= 0 && h2 <= PI;
 	}
 
 	/**
