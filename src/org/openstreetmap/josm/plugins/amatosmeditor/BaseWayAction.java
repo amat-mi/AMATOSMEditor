@@ -106,6 +106,8 @@ public abstract class BaseWayAction extends JosmAction
 		double h1 = first1.heading(last1);
 		double h2 = first2.heading(last2);
 		h2 = (h2 + PI / 2 - h1) % (2 * PI);
+		if(h2 < 0)
+			h2 = (2 * PI + h2)  % (2 * PI);
 		
 		return h2 >= 0 && h2 <= PI;
 	}
