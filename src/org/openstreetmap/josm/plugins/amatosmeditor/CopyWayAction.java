@@ -121,11 +121,22 @@ public class CopyWayAction extends BaseWayAction
 				}
 		}
 
+		//Explicit management of tag "oneway"
+		//If it is present in OSM Way, but not in AMAT Way, remove it
+		//Do it only unless it is already set to "no" in OSM Way
+		String specialkey = "oneway";
+		if(!amatWay.hasKey(specialkey) && osmWay.hasKey(specialkey)) {
+			if(!"no".equals(osmWay.get(specialkey))) {
+				tagsToRemove.put(specialkey, null);				
+				needConfirmation = true;
+			}
+		}
+		
 		//Remove from OSM Way, tags with keys that must not be present if not present in AMAT Way
 		//Do it only if they're actually present in OSM Way
-		//Set a flag if any tag removed		
+		//Set a flag if any tag removed
+		//NOTE!!! There are no such tags at the moment!!!
 		Set<String> tagsRemoveIfAbsent = new HashSet<String>();
-		tagsRemoveIfAbsent.add("oneway");
 		for (String key : tagsRemoveIfAbsent) {
 			if(!amatWay.hasKey(key) && osmWay.hasKey(key)) {
 				tagsToRemove.put(key, null);
