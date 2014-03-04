@@ -85,6 +85,7 @@ public class AMATDownloadAction extends JosmAction implements LayerChangeListene
 	 */
 	public void setMapView(MapView mapView) {
 		this.mapView = mapView;
+		updateEnabledState();				//see if we're enabled	
 	}
 	
 	/**
@@ -99,6 +100,7 @@ public class AMATDownloadAction extends JosmAction implements LayerChangeListene
 	 */
 	public void setAmatosmUrl(String amatosmUrl) {
 		this.amatosmUrl = amatosmUrl;
+		updateEnabledState();				//see if we're enabled	
 	}
 
 	/////////// LayerChangeListener
@@ -165,6 +167,6 @@ public class AMATDownloadAction extends JosmAction implements LayerChangeListene
 	 */
 	@Override
 	protected void updateEnabledState() {
-		setEnabled(amatosmUrl != null && mapView != null && getEditLayer() != null);
+		setEnabled(amatosmUrl != null && !amatosmUrl.isEmpty() && mapView != null && getEditLayer() != null);
 	}
 }
