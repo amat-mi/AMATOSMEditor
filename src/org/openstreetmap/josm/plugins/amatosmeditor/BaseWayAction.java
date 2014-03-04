@@ -185,8 +185,12 @@ public abstract class BaseWayAction extends JosmAction
 		}
 		
 		if(tooFarAway(osmWay, amatWay, 100)) {
-			JOptionPane.showMessageDialog(Main.parent, tr("OSM and AMAT are too far away"));
-			return null;			
+			if(JOptionPane.showConfirmDialog(
+					Main.parent, 
+					new String[] {tr("OSM and AMAT ways are very far away"),tr("Continue?")},
+					tr("Warning"),
+					JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE) != JOptionPane.OK_OPTION)
+				return null;			
 		}
 		
 		return amatWay;
