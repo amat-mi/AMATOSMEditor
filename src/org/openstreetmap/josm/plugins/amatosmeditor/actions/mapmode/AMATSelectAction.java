@@ -209,6 +209,16 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
         initialMoveThreshold = Main.pref.getInteger("edit.initial-move-threshold", 5);
     }
 
+    /**
+     * It was in NavigatableComponent until revision 6991
+     * @return o as collection of o's type.
+     */
+    public static <T> Collection<T> asColl(T o) {
+        if (o == null)
+            return Collections.emptySet();
+        return Collections.singleton(o);
+    }
+
     @Override
     public void enterMode() {
         super.enterMode();
@@ -279,7 +289,7 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
      * @return {@code true} if repaint is required
      */
     private boolean giveUserFeedback(MouseEvent e, int modifiers) {
-        Collection<OsmPrimitive> c = MapView.asColl(
+        Collection<OsmPrimitive> c = asColl(
                 mv.getNearestNodeOrWay(e.getPoint(), OsmPrimitive.isSelectablePredicate, true));
 
         updateKeyModifiers(modifiers);
@@ -462,7 +472,7 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
         case scale:
             //  if nothing was selected, select primitive under cursor for scaling or rotating
             if (this.dataSet.getSelected().isEmpty()) {
-            	this.dataSet.setSelected(MapView.asColl(nearestPrimitive));
+            	this.dataSet.setSelected(asColl(nearestPrimitive));
             }
 
             // Mode.select redraws when selectPrims is called
@@ -477,7 +487,7 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
                 virtualManager.activateVirtualNodeNearPoint(e.getPoint());
             }
             OsmPrimitive toSelect = cycleManager.cycleSetup(nearestPrimitive, e.getPoint());
-            selectPrims(NavigatableComponent.asColl(toSelect), false, false);
+            selectPrims(asColl(toSelect), false, false);
             useLastMoveCommandIfPossible();
             // Schedule a timer to update status line "initialMoveDelay+1" ms in the future
             GuiHelper.scheduleTimer(initialMoveDelay+1, new ActionListener() {
@@ -553,7 +563,7 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
                 oldHighlights.add(p);
                 needsRepaint = true;
             }
-            mv.setNewCursor(getCursor(MapView.asColl(p)), this);
+            mv.setNewCursor(getCursor(asColl(p)), this);
             // also update the stored mouse event, so we can display the correct cursor
             // when dragging a node onto another one and then press CTRL to merge
             oldEvent = e;
@@ -993,7 +1003,7 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
 
                 if (!(alt || multipleMatchesParameter)) {
                     // no real cycling, just one element in cycle list
-                    cycleList = MapView.asColl(osm);
+                    cycleList = asColl(osm);
 
                     if (waitForMouseUpParameter) {
                         // prefer a selected nearest node or way, if possible
@@ -1100,7 +1110,7 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
                 cycleStart = null;
             }
             // return one-element collection with one element to be selected (or added  to selection)
-            return MapView.asColl(nxt);
+            return asColl(nxt);
         }
     }
 
