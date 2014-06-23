@@ -495,18 +495,6 @@ public class AMATOsmDataLayer extends Layer implements Listener, SelectionChange
     }
 
     @Override public Action[] getMenuEntries() {
-        if (Main.applet)
-            return new Action[]{
-                LayerListDialog.getInstance().createActivateLayerAction(this),
-                LayerListDialog.getInstance().createShowHideLayerAction(),
-                LayerListDialog.getInstance().createDeleteLayerAction(),
-                SeparatorLayerAction.INSTANCE,
-                LayerListDialog.getInstance().createMergeLayerAction(this),
-                SeparatorLayerAction.INSTANCE,
-                new RenameLayerAction(getAssociatedFile(), this),
-                new ConsistencyTestAction(),
-                SeparatorLayerAction.INSTANCE,
-                new LayerListPopup.InfoAction(this)};
         List<Action> actions = new ArrayList<Action>();
         actions.addAll(Arrays.asList(new Action[]{
                 LayerListDialog.getInstance().createActivateLayerAction(this),
