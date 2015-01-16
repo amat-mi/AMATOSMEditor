@@ -40,7 +40,7 @@ import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.gui.ExtendedDialog;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.widgets.JosmTextArea;
-import org.openstreetmap.josm.tools.DateUtils;
+import org.openstreetmap.josm.tools.date.DateUtils;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.Geometry;
 import org.openstreetmap.josm.tools.WindowGeometry;

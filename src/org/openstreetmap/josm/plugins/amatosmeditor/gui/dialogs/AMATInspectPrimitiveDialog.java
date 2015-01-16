@@ -47,7 +47,7 @@ import org.openstreetmap.josm.gui.mappaint.StyleSource;
 import org.openstreetmap.josm.gui.mappaint.mapcss.MapCSSStyleSource;
 import org.openstreetmap.josm.gui.mappaint.xml.XmlStyleSource;
 import org.openstreetmap.josm.gui.widgets.JosmTextArea;
-import org.openstreetmap.josm.tools.DateUtils;
+import org.openstreetmap.josm.tools.date.DateUtils;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.Geometry;
 import org.openstreetmap.josm.tools.WindowGeometry;
@@ -352,7 +352,7 @@ public class AMATInspectPrimitiveDialog extends ExtendedDialog {
             for (StyleSource s : elemstyles.getStyleSources()) {
                 if (s.active) {
                     txtMappaint.append(tr("\n\n> applying {0} style \"{1}\"\n", getSort(s), s.getDisplayString()));
-                    s.apply(mc, osm, scale, null, false);
+                    s.apply(mc, osm, scale, false);
                     txtMappaint.append(tr("\nRange:{0}", mc.range));
                     for (Entry<String, Cascade> e : mc.getLayers()) {
                         txtMappaint.append("\n " + e.getKey() + ": \n" + e.getValue());
