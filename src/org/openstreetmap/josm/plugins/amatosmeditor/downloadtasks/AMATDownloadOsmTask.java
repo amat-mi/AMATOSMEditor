@@ -275,7 +275,7 @@ public class AMATDownloadOsmTask extends AbstractDownloadTask {
             } else {
                 v.computeBoundingBox(dataSet.getNodes());
             }
-            Main.map.mapView.recalculateCenterScale(v);
+            Main.map.mapView.zoomTo(v);
         }
 
         @Override protected void cancel() {

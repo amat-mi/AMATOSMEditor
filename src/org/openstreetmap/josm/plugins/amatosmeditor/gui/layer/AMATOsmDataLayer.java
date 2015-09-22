@@ -83,6 +83,7 @@ import org.openstreetmap.josm.plugins.amatosmeditor.actions.AMATToggleUploadDisc
 import org.openstreetmap.josm.tools.date.DateUtils;
 import org.openstreetmap.josm.tools.FilteredCollection;
 import org.openstreetmap.josm.tools.GBC;
+import org.openstreetmap.josm.tools.ImageOverlay;
 import org.openstreetmap.josm.tools.ImageProvider;
 
 /**
@@ -265,23 +266,21 @@ public class AMATOsmDataLayer extends Layer implements Listener, SelectionChange
         DataSet.addSelectionListener(this);
     }
 
-    protected Icon getBaseIcon() {
-        return ImageProvider.get("layer", "osmdata_small");
-    }
-
     /**
      * TODO: @return Return a dynamic drawn icon of the map data. The icon is
      *         updated by a background thread to not disturb the running programm.
      */
     @Override public Icon getIcon() {
-        Icon baseIcon = getBaseIcon();
+    	ImageProvider base = new ImageProvider("layer", "osmdata_small");
         if (isUploadDiscouraged()) {
-            return ImageProvider.overlay(baseIcon,
-                    new ImageIcon(ImageProvider.get("warning-small").getImage().getScaledInstance(8, 8, Image.SCALE_SMOOTH)),
-                    ImageProvider.OverlayPosition.SOUTHEAST);
-        } else {
-            return baseIcon;
+        	ImageOverlay overlay = new ImageOverlay(new ImageProvider("warning-small"));
+        	base.addOverlay(overlay);
+//            return ImageProvider.overlay(baseIcon,
+//                    new ImageIcon(ImageProvider.get("warning-small").getImage().getScaledInstance(8, 8, Image.SCALE_SMOOTH)),
+//                    ImageProvider.OverlayPosition.SOUTHEAST);
         }
+        
+	    return base.get();
     }
 
     /**
