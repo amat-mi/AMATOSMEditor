@@ -73,7 +73,7 @@ public class CopyWayAction extends BaseWayAction
         double offset = (pdx * ldx + pdy * ldy) / (ldx * ldx + ldy * ldy);
 
         return offset <= 0 || offset >= 1 ? null :
-        	node.getEastNorth().sub(new EastNorth(p1.getX() + ldx * offset, p1.getY() + ldy * offset));
+        	new EastNorth(p1.getX() + ldx * offset, p1.getY() + ldy * offset).subtract(node.getEastNorth());
     }
 	
 	@Override
