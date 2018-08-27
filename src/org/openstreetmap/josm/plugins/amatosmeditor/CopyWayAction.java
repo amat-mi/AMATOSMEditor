@@ -244,10 +244,10 @@ public class CopyWayAction extends BaseWayAction
 			//Add last Node from OSM Way as last node to set in the end
 			nodesToSet.add(osmWay.lastNode());
 	
-			//Add a command for each Node to be added to DataSet 
+			//Add a command for each Node to be added to the DataSet of the OSM Way 
 			if(!nodesToAdd.isEmpty()) {
 				for(Node node : nodesToAdd)
-					commands.add(new AddCommand(node));
+					commands.add(new AddCommand(osmWay.getDataSet(),node));
 			}
 					
 			//Add a command to set the new Node list into the OSM Way

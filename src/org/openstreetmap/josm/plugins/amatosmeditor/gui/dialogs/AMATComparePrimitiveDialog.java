@@ -14,7 +14,6 @@ import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -39,11 +38,11 @@ import org.openstreetmap.josm.data.osm.RelationMember;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.gui.ExtendedDialog;
 import org.openstreetmap.josm.gui.layer.Layer;
+import org.openstreetmap.josm.gui.util.WindowGeometry;
 import org.openstreetmap.josm.gui.widgets.JosmTextArea;
-import org.openstreetmap.josm.tools.date.DateUtils;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.Geometry;
-import org.openstreetmap.josm.tools.WindowGeometry;
+import org.openstreetmap.josm.tools.date.DateUtils;
 
 /**
  * Panel to inspect one or more OsmPrimitives.
@@ -338,7 +337,7 @@ public class AMATComparePrimitiveDialog extends ExtendedDialog {
             } else if (o instanceof Way) {
                 addBbox(o);
                 add(tr("Centroid: "), Main.getProjection().eastNorth2latlon(
-                        Geometry.getCentroid(((Way) o).getNodes())).toStringCSV(", "));
+                        Geometry.getCentroid(((Way) o).getNodes())).toDisplayString());
                 addWayNodes((Way) o);
             } else if (o instanceof Relation) {
                 addBbox(o);
@@ -376,7 +375,7 @@ public class AMATComparePrimitiveDialog extends ExtendedDialog {
                         Double.toString(bottomRigth.north()), ", ",
                         Double.toString(bottomRigth.east()), ", ",
                         Double.toString(topLeft.north()));
-                add(tr("Center of bounding box: "), bbox.getCenter().toStringCSV(", "));
+                add(tr("Center of bounding box: "), bbox.getCenter().toDisplayString());
             }
         }
 

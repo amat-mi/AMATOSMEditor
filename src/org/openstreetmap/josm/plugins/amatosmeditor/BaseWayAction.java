@@ -103,8 +103,8 @@ public abstract class BaseWayAction extends JosmAction
 		LatLon last1 = way1.lastNode().getCoor();
 		LatLon first2 = way2.firstNode().getCoor();
 		LatLon last2 = way2.lastNode().getCoor();
-		double h1 = first1.heading(last1);
-		double h2 = first2.heading(last2);
+		double h1 = first1.bearing(last1);
+		double h2 = first2.bearing(last2);
 		h2 = (h2 + PI / 2 - h1) % (2 * PI);
 		if(h2 < 0)
 			h2 = (2 * PI + h2)  % (2 * PI);

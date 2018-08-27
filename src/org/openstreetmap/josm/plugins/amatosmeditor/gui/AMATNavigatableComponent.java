@@ -166,8 +166,8 @@ public class AMATNavigatableComponent extends NavigatableComponent {
 
 	/* (non-Javadoc)
 	 * @see org.openstreetmap.josm.gui.NavigatableComponent#getCurrentDataSet()
+	 * NOT OVERRIDE ANYMORE!!!
 	 */
-	@Override
 	protected DataSet getCurrentDataSet() {
 		return dataSet;
 	}

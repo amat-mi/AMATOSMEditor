@@ -26,31 +26,31 @@ import org.openstreetmap.josm.data.conflict.Conflict;
 import org.openstreetmap.josm.data.conflict.ConflictCollection;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.osm.BBox;
+import org.openstreetmap.josm.data.osm.DefaultNameFormatter;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.OsmPrimitiveComparator;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.RelationMember;
 import org.openstreetmap.josm.data.osm.Way;
-import org.openstreetmap.josm.gui.DefaultNameFormatter;
 import org.openstreetmap.josm.gui.ExtendedDialog;
 import org.openstreetmap.josm.gui.NavigatableComponent;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.mappaint.Cascade;
-import org.openstreetmap.josm.gui.mappaint.ElemStyle;
 import org.openstreetmap.josm.gui.mappaint.ElemStyles;
 import org.openstreetmap.josm.gui.mappaint.MapPaintStyles;
 import org.openstreetmap.josm.gui.mappaint.MultiCascade;
 import org.openstreetmap.josm.gui.mappaint.StyleCache;
-import org.openstreetmap.josm.gui.mappaint.StyleCache.StyleList;
+import org.openstreetmap.josm.gui.mappaint.StyleElementList;
 import org.openstreetmap.josm.gui.mappaint.StyleSource;
 import org.openstreetmap.josm.gui.mappaint.mapcss.MapCSSStyleSource;
+import org.openstreetmap.josm.gui.mappaint.styleelement.StyleElement;
 import org.openstreetmap.josm.gui.mappaint.xml.XmlStyleSource;
+import org.openstreetmap.josm.gui.util.WindowGeometry;
 import org.openstreetmap.josm.gui.widgets.JosmTextArea;
-import org.openstreetmap.josm.tools.date.DateUtils;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.Geometry;
-import org.openstreetmap.josm.tools.WindowGeometry;
+import org.openstreetmap.josm.tools.date.DateUtils;
 
 /**
  * Panel to inspect one or more OsmPrimitives.
@@ -110,7 +110,7 @@ public class AMATInspectPrimitiveDialog extends ExtendedDialog {
 
     protected String buildDataText() {
         DataText dt = new DataText();
-        Collections.sort(primitives, new OsmPrimitiveComparator());
+        Collections.sort(primitives, OsmPrimitiveComparator.comparingNames());
         for (OsmPrimitive o : primitives) {
             dt.addPrimitive(o);
         }
@@ -246,7 +246,7 @@ public class AMATInspectPrimitiveDialog extends ExtendedDialog {
             } else if (o instanceof Way) {
                 addBbox(o);
                 add(tr("Centroid: "), Main.getProjection().eastNorth2latlon(
-                        Geometry.getCentroid(((Way) o).getNodes())).toStringCSV(", "));
+                        Geometry.getCentroid(((Way) o).getNodes())).toDisplayString());
                 addWayNodes((Way) o);
             } else if (o instanceof Relation) {
                 addBbox(o);
@@ -284,7 +284,7 @@ public class AMATInspectPrimitiveDialog extends ExtendedDialog {
                         Double.toString(bottomRigth.north()), ", ",
                         Double.toString(bottomRigth.east()), ", ",
                         Double.toString(topLeft.north()));
-                add(tr("Center of bounding box: "), bbox.getCenter().toStringCSV(", "));
+                add(tr("Center of bounding box: "), bbox.getCenter().toDisplayString());
             }
         }
 
@@ -362,8 +362,8 @@ public class AMATInspectPrimitiveDialog extends ExtendedDialog {
                 }
             }
             txtMappaint.append(tr("\n\nList of generated Styles:\n"));
-            StyleList sl = elemstyles.get(osm, scale, nc);
-            for (ElemStyle s : sl) {
+            StyleElementList sl = elemstyles.get(osm, scale, nc);
+            for (StyleElement s : sl) {
                 txtMappaint.append(" * " + s + "\n");
             }
             txtMappaint.append("\n\n");
