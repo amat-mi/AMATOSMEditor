@@ -4,15 +4,9 @@ package org.openstreetmap.josm.plugins.amatosmeditor.actions.mapmode;
 import static org.openstreetmap.josm.tools.I18n.tr;
 import static org.openstreetmap.josm.tools.I18n.trn;
 
-import java.awt.AWTEvent;
 import java.awt.Cursor;
 import java.awt.Point;
 import java.awt.Rectangle;
-import java.awt.Toolkit;
-import java.awt.event.AWTEventListener;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
@@ -22,6 +16,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.Optional;
 import java.util.Set;
 
 import javax.swing.JOptionPane;
@@ -40,26 +35,33 @@ import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Node;
+import org.openstreetmap.josm.data.osm.OsmData;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.data.osm.WaySegment;
 import org.openstreetmap.josm.data.osm.visitor.AllNodesVisitor;
 import org.openstreetmap.josm.data.osm.visitor.paint.WireframeMapRenderer;
 import org.openstreetmap.josm.gui.ExtendedDialog;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.MapView;
-import org.openstreetmap.josm.gui.NavigatableComponent;
+import org.openstreetmap.josm.gui.MapViewState.MapViewPoint;
 import org.openstreetmap.josm.gui.layer.Layer;
+import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.util.GuiHelper;
+import org.openstreetmap.josm.gui.util.KeyPressReleaseListener;
+import org.openstreetmap.josm.gui.util.ModifierExListener;
 import org.openstreetmap.josm.plugins.amatosmeditor.gui.AMATNavigatableComponent;
 import org.openstreetmap.josm.plugins.amatosmeditor.gui.AMATSelectionManager;
 import org.openstreetmap.josm.plugins.amatosmeditor.gui.AMATSelectionManager.SelectionEnded;
 import org.openstreetmap.josm.plugins.amatosmeditor.gui.dialogs.AMATInspectPrimitiveDialog;
 import org.openstreetmap.josm.plugins.amatosmeditor.gui.layer.AMATOsmDataLayer;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Pair;
-import org.openstreetmap.josm.tools.PlatformHookOsx;
 import org.openstreetmap.josm.tools.Shortcut;
+import org.openstreetmap.josm.tools.Utils;
 
 /**
  * Move is an action that can move all kind of OsmPrimitives (except keys for now).
@@ -69,21 +71,17 @@ import org.openstreetmap.josm.tools.Shortcut;
  * and will be moved.
  * If no object is under the mouse, move all selected objects (if any)
  *
- * @author imi
+ * On Mac OS X, Ctrl + mouse button 1 simulates right click (map move), so the
+ * feature "selection remove" is disabled on this platform.
  */
-public class AMATSelectAction extends MapMode implements AWTEventListener, SelectionEnded {
-	private static final long serialVersionUID = 1L;
+public class AMATSelectAction extends MapMode implements ModifierExListener, KeyPressReleaseListener, SelectionEnded {
+
+    private static final String NORMAL = /* ICON(cursor/)*/ "normal";
 
 	protected Layer layer;
 	protected DataSet dataSet;
 	protected AMATNavigatableComponent amatNC;
-		
-	@Override
-	protected void updateEnabledState() {
-		super.updateEnabledState();
-		setEnabled(isEnabled() && dataSet != null);
-	}
-	
+    
 	public void setLayer(Layer newLayer) {
 		layer = null;
 		dataSet = null;		
@@ -96,54 +94,72 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
 		}
 		updateEnabledState();
 	}
-	
-	// "select" means the selection rectangle and "move" means either dragging
-    // or select if no mouse movement occurs (i.e. just clicking)
-    enum Mode { move, rotate, scale, select }
+		
+    /**
+     * Select action mode.
+     * @since 7543
+     */
+    public enum Mode {
+        /** "MOVE" means either dragging or select if no mouse movement occurs (i.e. just clicking) */
+        MOVE,
+        /** "ROTATE" allows to apply a rotation transformation on the selected object (see {@link RotateCommand}) */
+        ROTATE,
+        /** "SCALE" allows to apply a scaling transformation on the selected object (see {@link ScaleCommand}) */
+        SCALE,
+        /** "SELECT" means the selection rectangle */
+        SELECT
+    }
 
     // contains all possible cases the cursor can be in the SelectAction
-    static private enum SelectActionCursor {
-        rect("normal", "selection"),
-        rect_add("normal", "select_add"),
-        rect_rm("normal", "select_remove"),
-        way("normal", "select_way"),
-        way_add("normal", "select_way_add"),
-        way_rm("normal", "select_way_remove"),
-        node("normal", "select_node"),
-        node_add("normal", "select_node_add"),
-        node_rm("normal", "select_node_remove"),
-        virtual_node("normal", "addnode"),
-        scale("scale", null),
-        rotate("rotate", null),
-        merge("crosshair", null),
-        lasso("normal", "rope"),
-        merge_to_node("crosshair", "joinnode"),
+    enum SelectActionCursor {
+
+        rect(NORMAL, /* ICON(cursor/modifier/)*/ "selection"),
+        rect_add(NORMAL, /* ICON(cursor/modifier/)*/ "select_add"),
+        rect_rm(NORMAL, /* ICON(cursor/modifier/)*/ "select_remove"),
+        way(NORMAL, /* ICON(cursor/modifier/)*/ "select_way"),
+        way_add(NORMAL, /* ICON(cursor/modifier/)*/ "select_way_add"),
+        way_rm(NORMAL, /* ICON(cursor/modifier/)*/ "select_way_remove"),
+        node(NORMAL, /* ICON(cursor/modifier/)*/ "select_node"),
+        node_add(NORMAL, /* ICON(cursor/modifier/)*/ "select_node_add"),
+        node_rm(NORMAL, /* ICON(cursor/modifier/)*/ "select_node_remove"),
+        virtual_node(NORMAL, /* ICON(cursor/modifier/)*/ "addnode"),
+        scale(/* ICON(cursor/)*/ "scale", null),
+        rotate(/* ICON(cursor/)*/ "rotate", null),
+        merge(/* ICON(cursor/)*/ "crosshair", null),
+        lasso(NORMAL, /* ICON(cursor/modifier/)*/ "rope"),
+        merge_to_node(/* ICON(cursor/)*/ "crosshair", /* ICON(cursor/modifier/)*/"joinnode"),
         move(Cursor.MOVE_CURSOR);
 
         private final Cursor c;
-        private SelectActionCursor(String main, String sub) {
+        SelectActionCursor(String main, String sub) {
             c = ImageProvider.getCursor(main, sub);
         }
-        private SelectActionCursor(int systemCursor) {
+
+        SelectActionCursor(int systemCursor) {
             c = Cursor.getPredefinedCursor(systemCursor);
         }
+
+        /**
+         * Returns the action cursor.
+         * @return the cursor
+         */
         public Cursor cursor() {
             return c;
         }
     }
 
-    private boolean lassoMode = false;
+    private boolean lassoMode;
+    private boolean repeatedKeySwitchLassoOption;
 
     // Cache previous mouse event (needed when only the modifier keys are
     // pressed but the mouse isn't moved)
-    private MouseEvent oldEvent = null;
+    private MouseEvent oldEvent;
 
-//    private Mode mode = null;
-    private Mode mode = Mode.select;
-    private AMATSelectionManager selectionManager;
-    private boolean cancelDrawMode = false;
+    private Mode mode;
+    private final transient AMATSelectionManager selectionManager;
+    private boolean cancelDrawMode;
     private boolean drawTargetHighlight;
-    private boolean didMouseDrag = false;
+    private boolean didMouseDrag;
     /**
      * The component this SelectAction is associated with.
      */
@@ -155,7 +171,7 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
     /**
      * point where user pressed the mouse to start movement
      */
-    EastNorth startEN;
+    private EastNorth startEN;
     /**
      * The last known position of the mouse.
      */
@@ -163,15 +179,15 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
     /**
      * The time of the user mouse down event.
      */
-    private long mouseDownTime = 0;
+    private long mouseDownTime;
     /**
      * The pressed button of the user mouse down event.
      */
-    private int mouseDownButton = 0;
+    private int mouseDownButton;
     /**
      * The time of the user mouse down event.
      */
-    private long mouseReleaseTime = 0;
+    private long mouseReleaseTime;
     /**
      * The time which needs to pass between click and release before something
      * counts as a move, in milliseconds
@@ -182,14 +198,14 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
      * counts as a move, in pixels
      */
     private int initialMoveThreshold;
-    private boolean initialMoveThresholdExceeded = false;
+    private boolean initialMoveThresholdExceeded;
 
     /**
      * elements that have been highlighted in the previous iteration. Used
      * to remove the highlight from them again as otherwise the whole data
      * set would have to be checked.
      */
-    private Set<OsmPrimitive> oldHighlights = new HashSet<OsmPrimitive>();
+    private transient Optional<OsmPrimitive> currentHighlight = Optional.empty();
 
     /**
      * Create a new SelectAction
@@ -199,41 +215,32 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
         super(tr("Select AMAT"), "amat-select-action", tr("Select AMAT objects"),
                 Shortcut.registerShortcut("mapmode:amatselect", tr("Mode: {0}", tr("Select AMAT")), 
                 		KeyEvent.VK_W, Shortcut.CTRL_SHIFT),
-                mapFrame,
                 ImageProvider.getCursor("normal", "selection"));
         mv = mapFrame.mapView;
 //        putValue("help", ht("/Action/Select"));        
         amatNC = new AMATNavigatableComponent(mv);
         selectionManager = new AMATSelectionManager(this, false, mv, amatNC);
-        initialMoveDelay = Main.pref.getInteger("edit.initial-move-delay", 200);
-        initialMoveThreshold = Main.pref.getInteger("edit.initial-move-threshold", 5);
+        //PAOLO - Are these needed???
+        initialMoveDelay = Config.getPref().getInt("edit.initial-move-delay", 200);
+        initialMoveThreshold = Config.getPref().getInt("edit.initial-move-threshold", 5);
     }
-
-    /**
-     * It was in NavigatableComponent until revision 6991
-     * @return o as collection of o's type.
-     */
-    public static <T> Collection<T> asColl(T o) {
-        if (o == null)
-            return Collections.emptySet();
-        return Collections.singleton(o);
-    }
-
+    
     @Override
     public void enterMode() {
         super.enterMode();
         mv.addMouseListener(this);
         mv.addMouseMotionListener(this);
-        mv.setVirtualNodesEnabled(Main.pref.getInteger("mappaint.node.virtual-size", 8) != 0);
-        drawTargetHighlight = Main.pref.getBoolean("draw.target-highlight", true);
+        mv.setVirtualNodesEnabled(Config.getPref().getInt("mappaint.node.virtual-size", 8) != 0);
+        drawTargetHighlight = Config.getPref().getBoolean("draw.target-highlight", true);
+        initialMoveDelay = Config.getPref().getInt("edit.initial-move-delay", 200);
+        initialMoveThreshold = Config.getPref().getInt("edit.initial-move-threshold", 5);
+        repeatedKeySwitchLassoOption = Config.getPref().getBoolean("mappaint.select.toggle-lasso-on-repeated-S", true);
         cycleManager.init();
         virtualManager.init();
         // This is required to update the cursors when ctrl/shift/alt is pressed
-        try {
-            Toolkit.getDefaultToolkit().addAWTEventListener(this, AWTEvent.KEY_EVENT_MASK);
-        } catch (SecurityException ex) {
-            Main.warn(ex);
-        }
+        MapFrame map = MainApplication.getMap();
+        map.keyDetector.addModifierExListener(this);
+        map.keyDetector.addKeyListener(this);
     }
 
     @Override
@@ -243,30 +250,16 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
         mv.removeMouseListener(this);
         mv.removeMouseMotionListener(this);
         mv.setVirtualNodesEnabled(false);
-        try {
-            Toolkit.getDefaultToolkit().removeAWTEventListener(this);
-        } catch (SecurityException ex) {
-            Main.warn(ex);
-        }
+        MapFrame map = MainApplication.getMap();
+        map.keyDetector.removeModifierExListener(this);
+        map.keyDetector.removeKeyListener(this);
         removeHighlighting();
     }
 
-    int previousModifiers;
-
-     /**
-     * This is called whenever the keyboard modifier status changes
-     */
     @Override
-    public void eventDispatched(AWTEvent e) {
-        if(oldEvent == null)
-            return;
-        // We don't have a mouse event, so we pass the old mouse event but the
-        // new modifiers.
-        int modif = ((InputEvent) e).getModifiers();
-        if (previousModifiers == modif)
-            return;
-        previousModifiers = modif;
-        if(giveUserFeedback(oldEvent, ((InputEvent) e).getModifiers())) {
+    public void modifiersExChanged(int modifiers) {
+        if (!MainApplication.isDisplayingMapView() || oldEvent == null) return;
+        if (giveUserFeedback(oldEvent, modifiers)) {
             mv.repaint();
         }
     }
@@ -278,79 +271,74 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
      * @return {@code true} if repaint is required
      */
     private boolean giveUserFeedback(MouseEvent e) {
-        return giveUserFeedback(e, e.getModifiers());
+        return giveUserFeedback(e, e.getModifiersEx());
     }
 
     /**
      * handles adding highlights and updating the cursor for the given mouse event.
      * Please note that the highlighting for merging while moving is handled via mouseDragged.
      * @param e {@code MouseEvent} which should be used as base for the feedback
-     * @param modifiers define custom keyboard modifiers if the ones from MouseEvent are outdated or similar
+     * @param modifiers define custom keyboard extended modifiers if the ones from MouseEvent are outdated or similar
      * @return {@code true} if repaint is required
      */
     private boolean giveUserFeedback(MouseEvent e, int modifiers) {
-        Collection<OsmPrimitive> c = asColl(
-                mv.getNearestNodeOrWay(e.getPoint(), OsmPrimitive.isSelectablePredicate, true));
+        Optional<OsmPrimitive> c = Optional.ofNullable(
+                mv.getNearestNodeOrWay(e.getPoint(), mv.isSelectablePredicate, true));
 
-        updateKeyModifiers(modifiers);
-        determineMapMode(!c.isEmpty());
+        updateKeyModifiersEx(modifiers);
+        determineMapMode(c.isPresent());
 
-        HashSet<OsmPrimitive> newHighlights = new HashSet<OsmPrimitive>();
+        Optional<OsmPrimitive> newHighlight = Optional.empty();
 
         virtualManager.clear();
-        if(mode == Mode.move) {
-            if (!dragInProgress() && virtualManager.activateVirtualNodeNearPoint(e.getPoint())) {
-                DataSet ds = this.dataSet;
-                if (ds != null && drawTargetHighlight) {
-                    ds.setHighlightedVirtualNodes(virtualManager.virtualWays);
-                }
-                mv.setNewCursor(SelectActionCursor.virtual_node.cursor(), this);
-                // don't highlight anything else if a virtual node will be
-                return repaintIfRequired(newHighlights);
+        if (mode == Mode.MOVE && !dragInProgress() && virtualManager.activateVirtualNodeNearPoint(e.getPoint())) {
+            DataSet ds = getLayerManager().getActiveDataSet();
+            if (ds != null && drawTargetHighlight) {
+                ds.setHighlightedVirtualNodes(virtualManager.virtualWays);
             }
+            mv.setNewCursor(SelectActionCursor.virtual_node.cursor(), this);
+            // don't highlight anything else if a virtual node will be
+            return repaintIfRequired(newHighlight);
         }
 
-        mv.setNewCursor(getCursor(c), this);
+        mv.setNewCursor(getCursor(c.orElse(null)), this);
 
         // return early if there can't be any highlights
-        if(!drawTargetHighlight || mode != Mode.move || c.isEmpty())
-            return repaintIfRequired(newHighlights);
+        if (!drawTargetHighlight || (mode != Mode.MOVE && mode != Mode.SELECT) || !c.isPresent())
+            return repaintIfRequired(newHighlight);
 
         // CTRL toggles selection, but if while dragging CTRL means merge
         final boolean isToggleMode = ctrl && !dragInProgress();
-        for(OsmPrimitive x : c) {
+        if (c.isPresent() && (isToggleMode || !c.get().isSelected())) {
             // only highlight primitives that will change the selection
             // when clicked. I.e. don't highlight selected elements unless
             // we are in toggle mode.
-            if(isToggleMode || !x.isSelected()) {
-                newHighlights.add(x);
-            }
+            newHighlight = c;
         }
-        return repaintIfRequired(newHighlights);
+        return repaintIfRequired(newHighlight);
     }
 
     /**
      * works out which cursor should be displayed for most of SelectAction's
      * features. The only exception is the "move" cursor when actually dragging
      * primitives.
-     * @param nearbyStuff  primitives near the cursor
+     * @param nearbyStuff primitives near the cursor
      * @return the cursor that should be displayed
      */
-    private Cursor getCursor(Collection<OsmPrimitive> nearbyStuff) {
+    private Cursor getCursor(OsmPrimitive nearbyStuff) {
         String c = "rect";
         switch(mode) {
-        case move:
-            if(virtualManager.hasVirtualNode()) {
+        case MOVE:
+            if (virtualManager.hasVirtualNode()) {
                 c = "virtual_node";
                 break;
             }
-            final Iterator<OsmPrimitive> it = nearbyStuff.iterator();
-            final OsmPrimitive osm = it.hasNext() ? it.next() : null;
+            final OsmPrimitive osm = nearbyStuff;
 
-            if(dragInProgress()) {
+            if (dragInProgress()) {
                 // only consider merge if ctrl is pressed and there are nodes in
                 // the selection that could be merged
-                if(!ctrl || this.dataSet.getSelectedNodes().isEmpty()) {
+                if (!ctrl || getLayerManager().getEditDataSet().getSelectedNodes().isEmpty()) {
                     c = "move";
                     break;
                 }
@@ -363,23 +351,23 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
 
             c = (osm instanceof Node) ? "node" : c;
             c = (osm instanceof Way) ? "way" : c;
-            if(shift) {
+            if (shift) {
                 c += "_add";
-            } else if(ctrl) {
+            } else if (ctrl) {
                 c += osm == null || osm.isSelected() ? "_rm" : "_add";
             }
             break;
-        case rotate:
+        case ROTATE:
             c = "rotate";
             break;
-        case scale:
+        case SCALE:
             c = "scale";
             break;
-        case select:
+        case SELECT:
             if (lassoMode) {
                 c = "lasso";
             } else {
-                c = "rect" + (shift ? "_add" : (ctrl ? "_rm" : ""));
+                c = "rect" + (shift ? "_add" : (ctrl && !Main.isPlatformOsx() ? "_rm" : ""));
             }
             break;
         }
@@ -392,43 +380,30 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
      */
     private boolean removeHighlighting() {
         boolean needsRepaint = false;
-        DataSet ds = this.dataSet;
-        if(ds != null && !ds.getHighlightedVirtualNodes().isEmpty()) {
+        OsmData<?, ?, ?, ?> ds = getLayerManager().getActiveData();
+        if (ds != null && !ds.getHighlightedVirtualNodes().isEmpty()) {
             needsRepaint = true;
             ds.clearHighlightedVirtualNodes();
         }
-        if(oldHighlights.isEmpty())
+        if (!currentHighlight.isPresent()) {
             return needsRepaint;
-
-        for(OsmPrimitive prim : oldHighlights) {
-            prim.setHighlighted(false);
+        } else {
+            currentHighlight.get().setHighlighted(false);
         }
-        oldHighlights = new HashSet<OsmPrimitive>();
+        currentHighlight = Optional.empty();
         return true;
     }
 
-    private boolean repaintIfRequired(Set<OsmPrimitive> newHighlights) {
-        if(!drawTargetHighlight)
+    private boolean repaintIfRequired(Optional<OsmPrimitive> newHighlight) {
+        if (!drawTargetHighlight || currentHighlight.equals(newHighlight))
             return false;
-
-        boolean needsRepaint = false;
-        for(OsmPrimitive x : newHighlights) {
-            if(oldHighlights.contains(x)) {
-                continue;
-            }
-            needsRepaint = true;
-            x.setHighlighted(true);
-        }
-        oldHighlights.removeAll(newHighlights);
-        for(OsmPrimitive x : oldHighlights) {
-            x.setHighlighted(false);
-            needsRepaint = true;
-        }
-        oldHighlights = newHighlights;
-        return needsRepaint;
+        currentHighlight.ifPresent(osm -> osm.setHighlighted(false));
+        newHighlight.ifPresent(osm -> osm.setHighlighted(true));
+        currentHighlight = newHighlight;
+        return true;
     }
 
-     /**
+    /**
      * Look, whether any object is selected. If not, select the nearest node.
      * If there are no nodes in the dataset, do nothing.
      *
@@ -441,8 +416,8 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
     public void mousePressed(MouseEvent e) {
         mouseDownButton = e.getButton();
         // return early
-//        if (!mv.isActiveLayerVisible() || !(Boolean) this.getValue("active") || mouseDownButton != MouseEvent.BUTTON1)
-//            return;
+        if (!mv.isActiveLayerVisible() || !(Boolean) this.getValue("active") || mouseDownButton != MouseEvent.BUTTON1)
+            return;
 
         // left-button mouse click only is processed here
 
@@ -454,25 +429,26 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
 
         // We don't want to change to draw tool if the user tries to (de)select
         // stuff but accidentally clicks in an empty area when selection is empty
-        cancelDrawMode = (shift || ctrl);
+        cancelDrawMode = shift || ctrl;
         didMouseDrag = false;
         initialMoveThresholdExceeded = false;
         mouseDownTime = System.currentTimeMillis();
         lastMousePos = e.getPoint();
-        startEN = mv.getEastNorth(lastMousePos.x,lastMousePos.y);
+        startEN = mv.getEastNorth(lastMousePos.x, lastMousePos.y);
 
         // primitives under cursor are stored in c collection
 
-        OsmPrimitive nearestPrimitive = mv.getNearestNodeOrWay(e.getPoint(), OsmPrimitive.isSelectablePredicate, true);
+        OsmPrimitive nearestPrimitive = mv.getNearestNodeOrWay(e.getPoint(), mv.isSelectablePredicate, true);
 
-        determineMapMode(nearestPrimitive!=null);
+        determineMapMode(nearestPrimitive != null);
 
         switch(mode) {
-        case rotate:
-        case scale:
+        case ROTATE:
+        case SCALE:
             //  if nothing was selected, select primitive under cursor for scaling or rotating
-            if (this.dataSet.getSelected().isEmpty()) {
-            	this.dataSet.setSelected(asColl(nearestPrimitive));
+            DataSet ds = getLayerManager().getEditDataSet();
+            if (ds.selectionEmpty()) {
+                ds.setSelected(asColl(nearestPrimitive));
             }
 
             // Mode.select redraws when selectPrims is called
@@ -480,7 +456,7 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
             // Mode.rotate redraws here
             // Mode.scale redraws here
             break;
-        case move:
+        case MOVE:
             // also include case when some primitive is under cursor and no shift+ctrl / alt+ctrl is pressed
             // so this is not movement, but selection on primitive under cursor
             if (!cancelDrawMode && nearestPrimitive instanceof Way) {
@@ -490,19 +466,16 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
             selectPrims(asColl(toSelect), false, false);
             useLastMoveCommandIfPossible();
             // Schedule a timer to update status line "initialMoveDelay+1" ms in the future
-            GuiHelper.scheduleTimer(initialMoveDelay+1, new ActionListener() {
-                @Override
-                public void actionPerformed(ActionEvent evt) {
-                    updateStatusLine();
-                }
-            }, false);
+            GuiHelper.scheduleTimer(initialMoveDelay+1, evt -> updateStatusLine(), false);
             break;
-        case select:
+        case SELECT:
         default:
-            // start working with rectangle or lasso
-            selectionManager.register(mv, lassoMode);
-            selectionManager.mousePressed(e);
-            break;
+            if (!(ctrl && Main.isPlatformOsx())) {
+                // start working with rectangle or lasso
+                selectionManager.register(mv, lassoMode);
+                selectionManager.mousePressed(e);
+                break;
+            }
         }
         if (giveUserFeedback(e)) {
             mv.repaint();
@@ -512,13 +485,13 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
 
     @Override
     public void mouseMoved(MouseEvent e) {
-        // Mac OSX simulates with  ctrl + mouse 1  the second mouse button hence no dragging events get fired.
-        if ((Main.platform instanceof PlatformHookOsx) && (mode == Mode.rotate || mode == Mode.scale)) {
+        // Mac OSX simulates with ctrl + mouse 1 the second mouse button hence no dragging events get fired.
+        if (Main.isPlatformOsx() && (mode == Mode.ROTATE || mode == Mode.SCALE)) {
             mouseDragged(e);
             return;
         }
         oldEvent = e;
-        if(giveUserFeedback(e)) {
+        if (giveUserFeedback(e)) {
             mv.repaint();
         }
     }
@@ -539,35 +512,41 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
             return;
 
         cancelDrawMode = true;
-        if (mode == Mode.select)
+        if (mode == Mode.SELECT) {
+            // Unregisters selectionManager if ctrl has been pressed after mouse click on Mac OS X in order to move the map
+            if (ctrl && Main.isPlatformOsx()) {
+                selectionManager.unregister(mv);
+                // Make sure correct cursor is displayed
+                mv.setNewCursor(Cursor.MOVE_CURSOR, this);
+            }
             return;
-
-        // do not count anything as a move if it lasts less than 100 milliseconds.
-        if ((mode == Mode.move) && (System.currentTimeMillis() - mouseDownTime < initialMoveDelay))
-            return;
-
-        if (mode != Mode.rotate && mode != Mode.scale) // button is pressed in rotate mode
-        {
-            if ((e.getModifiersEx() & MouseEvent.BUTTON1_DOWN_MASK) == 0)
-                return;
         }
 
-        if (mode == Mode.move) {
+        // do not count anything as a move if it lasts less than 100 milliseconds.
+        if ((mode == Mode.MOVE) && (System.currentTimeMillis() - mouseDownTime < initialMoveDelay))
+            return;
+
+        if (mode != Mode.ROTATE && mode != Mode.SCALE && (e.getModifiersEx() & MouseEvent.BUTTON1_DOWN_MASK) == 0) {
+            // button is pressed in rotate mode
+            return;
+        }
+
+        if (mode == Mode.MOVE) {
             // If ctrl is pressed we are in merge mode. Look for a nearby node,
             // highlight it and adjust the cursor accordingly.
-            final boolean canMerge = ctrl && !this.dataSet.getSelectedNodes().isEmpty();
-            final OsmPrimitive p = canMerge ? (OsmPrimitive)findNodeToMergeTo(e.getPoint()) : null;
+            final boolean canMerge = ctrl && !getLayerManager().getEditDataSet().getSelectedNodes().isEmpty();
+            final OsmPrimitive p = canMerge ? findNodeToMergeTo(e.getPoint()) : null;
             boolean needsRepaint = removeHighlighting();
-            if(p != null) {
+            if (p != null) {
                 p.setHighlighted(true);
-                oldHighlights.add(p);
+                currentHighlight = Optional.of(p);
                 needsRepaint = true;
             }
-            mv.setNewCursor(getCursor(asColl(p)), this);
+            mv.setNewCursor(getCursor(p), this);
             // also update the stored mouse event, so we can display the correct cursor
             // when dragging a node onto another one and then press CTRL to merge
             oldEvent = e;
-            if(needsRepaint) {
+            if (needsRepaint) {
                 mv.repaint();
             }
         }
@@ -576,7 +555,7 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
             startingDraggingPos = new Point(e.getX(), e.getY());
         }
 
-        if( lastMousePos == null ) {
+        if (lastMousePos == null) {
             lastMousePos = e.getPoint();
             return;
         }
@@ -599,22 +578,19 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
         }
 
         mv.repaint();
-        if (mode != Mode.scale) {
+        if (mode != Mode.SCALE) {
             lastMousePos = e.getPoint();
         }
 
         didMouseDrag = true;
     }
 
-
-
     @Override
     public void mouseExited(MouseEvent e) {
-        if(removeHighlighting()) {
+        if (removeHighlighting()) {
             mv.repaint();
         }
     }
-
 
     @Override
     public void mouseReleased(MouseEvent e) {
@@ -623,19 +599,24 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
 
         startingDraggingPos = null;
         mouseReleaseTime = System.currentTimeMillis();
+        MapFrame map = MainApplication.getMap();
 
-        if (mode == Mode.select) {
+        if (mode == Mode.SELECT) {
+            if (e.getButton() != MouseEvent.BUTTON1) {
+                return;
+            }
+            selectionManager.endSelecting(e);
             selectionManager.unregister(mv);
 
             // Select Draw Tool if no selection has been made
-            if (this.dataSet.getSelected().isEmpty() && !cancelDrawMode) {
-                Main.map.selectDrawTool(true);
+            if (!cancelDrawMode && getLayerManager().getActiveDataSet().selectionEmpty()) {
+                map.selectDrawTool(true);
                 updateStatusLine();
                 return;
             }
         }
 
-        if (mode == Mode.move && e.getButton() == MouseEvent.BUTTON1) {
+        if (mode == Mode.MOVE && e.getButton() == MouseEvent.BUTTON1) {
             if (!didMouseDrag) {
                 // only built in move mode
                 virtualManager.clear();
@@ -646,16 +627,11 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
                     selectPrims(cycleManager.cyclePrims(), true, false);
 
                     // If the user double-clicked a node, change to draw mode
-                    Collection<OsmPrimitive> c = this.dataSet.getSelected();
+                    Collection<OsmPrimitive> c = getLayerManager().getEditDataSet().getSelected();
                     if (e.getClickCount() >= 2 && c.size() == 1 && c.iterator().next() instanceof Node) {
                         // We need to do it like this as otherwise drawAction will see a double
                         // click and switch back to SelectMode
-                        Main.worker.execute(new Runnable() {
-                            @Override
-                            public void run() {
-                                Main.map.selectDrawTool(true);
-                            }
-                        });
+                        MainApplication.worker.execute(() -> map.selectDrawTool(true));
                         return;
                     }
                 }
@@ -664,14 +640,13 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
             }
         }
 
-//        mode = null;
-        mode = Mode.select;
+        mode = null;
 
         // simply remove any highlights if the middle click popup is active because
         // the highlights don't depend on the cursor position there. If something was
         // selected beforehand this would put us into move mode as well, which breaks
         // the cycling through primitives on top of each other (see #6739).
-        if(e.getButton() == MouseEvent.BUTTON2) {
+        if (e.getButton() == MouseEvent.BUTTON2) {
             removeHighlighting();
         } else {
             giveUserFeedback(e);
@@ -690,34 +665,57 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
         }        	
     }
 
+    @Override
+    public void doKeyPressed(KeyEvent e) {
+        if (!repeatedKeySwitchLassoOption || !MainApplication.isDisplayingMapView() || !getShortcut().isEvent(e))
+            return;
+        if (Logging.isDebugEnabled()) {
+            Logging.debug("{0} consuming event {1}", getClass().getName(), e);
+        }
+        e.consume();
+        MapFrame map = MainApplication.getMap();
+        if (!lassoMode) {
+            map.selectMapMode(map.mapModeSelectLasso);
+        } else {
+            map.selectMapMode(map.mapModeSelect);
+        }
+    }
+
+    @Override
+    public void doKeyReleased(KeyEvent e) {
+        // Do nothing
+    }
+
     /**
      * sets the mapmode according to key modifiers and if there are any
      * selectables nearby. Everything has to be pre-determined for this
      * function; its main purpose is to centralize what the modifiers do.
-     * @param hasSelectionNearby
+     * @param hasSelectionNearby {@code true} if some primitves are selectable nearby
      */
     private void determineMapMode(boolean hasSelectionNearby) {
-//        if (shift && ctrl) {
-//            mode = Mode.rotate;
-//        } else if (alt && ctrl) {
-//            mode = Mode.scale;
-//        } else if (hasSelectionNearby || dragInProgress()) {
-//            mode = Mode.move;
-//        } else {
-//            mode = Mode.select;
-//        }
-    	//NOOO!!! Only select is supported!!!
-        mode = Mode.select;
+        if (getLayerManager().getEditDataSet() != null) {
+            if (shift && ctrl) {
+                mode = Mode.ROTATE;
+            } else if (alt && ctrl) {
+                mode = Mode.SCALE;
+            } else if (hasSelectionNearby || dragInProgress()) {
+                mode = Mode.MOVE;
+            } else {
+                mode = Mode.SELECT;
+            }
+        } else {
+            mode = Mode.SELECT;
+        }
     }
 
-    /** returns true whenever elements have been grabbed and moved (i.e. the initial
-     * thresholds have been exceeded) and is still in progress (i.e. mouse button
-     * still pressed)
+    /**
+     * Determines whenever elements have been grabbed and moved (i.e. the initial
+     * thresholds have been exceeded) and is still in progress (i.e. mouse button still pressed)
+     * @return true if a drag is in progress
      */
-    final private boolean dragInProgress() {
+    private boolean dragInProgress() {
         return didMouseDrag && startingDraggingPos != null;
     }
-
 
     /**
      * Create or update data modification command while dragging mouse - implementation of
@@ -728,76 +726,85 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
     private boolean updateCommandWhileDragging(EastNorth currentEN) {
         // Currently we support only transformations which do not affect relations.
         // So don't add them in the first place to make handling easier
-        Collection<OsmPrimitive> selection = this.dataSet.getSelectedNodesAndWays();
+        DataSet ds = getLayerManager().getEditDataSet();
+        Collection<OsmPrimitive> selection = ds.getSelectedNodesAndWays();
         if (selection.isEmpty()) { // if nothing was selected to drag, just select nearest node/way to the cursor
-            OsmPrimitive nearestPrimitive = mv.getNearestNodeOrWay(mv.getPoint(startEN), OsmPrimitive.isSelectablePredicate, true);
-            this.dataSet.setSelected(nearestPrimitive);
+            OsmPrimitive nearestPrimitive = mv.getNearestNodeOrWay(mv.getPoint(startEN), mv.isSelectablePredicate, true);
+            ds.setSelected(nearestPrimitive);
         }
 
         Collection<Node> affectedNodes = AllNodesVisitor.getAllNodes(selection);
         // for these transformations, having only one node makes no sense - quit silently
-        if (affectedNodes.size() < 2 && (mode == Mode.rotate || mode == Mode.scale)) {
+        if (affectedNodes.size() < 2 && (mode == Mode.ROTATE || mode == Mode.SCALE)) {
             return false;
         }
-        Command c = getLastCommand();
-        if (mode == Mode.move) {
+        Command c = getLastCommandInDataset(ds);
+        if (mode == Mode.MOVE) {
             if (startEN == null) return false; // fix #8128
-            this.dataSet.beginUpdate();
-            if (c instanceof MoveCommand && affectedNodes.equals(((MoveCommand) c).getParticipatingPrimitives())) {
-                ((MoveCommand) c).saveCheckpoint();
-                ((MoveCommand) c).applyVectorTo(currentEN);
-            } else {
-                Main.main.undoRedo.add(
-                        c = new MoveCommand(selection, startEN, currentEN));
-            }
-            for (Node n : affectedNodes) {
-                LatLon ll = n.getCoor();
-                if (ll != null && ll.isOutSideWorld()) {
-                    // Revert move
-                    ((MoveCommand) c).resetToCheckpoint();
-                    this.dataSet.endUpdate();
-                    JOptionPane.showMessageDialog(
-                            Main.parent,
-                            tr("Cannot move objects outside of the world."),
-                            tr("Warning"),
-                            JOptionPane.WARNING_MESSAGE);
-                    mv.setNewCursor(cursor, this);
-                    return false;
+            ds.beginUpdate();
+            try {
+                if (c instanceof MoveCommand && affectedNodes.equals(((MoveCommand) c).getParticipatingPrimitives())) {
+                    ((MoveCommand) c).saveCheckpoint();
+                    ((MoveCommand) c).applyVectorTo(currentEN);
+                } else if (!selection.isEmpty()) {
+                    c = new MoveCommand(selection, startEN, currentEN);
+                    MainApplication.undoRedo.add(c);
                 }
+                for (Node n : affectedNodes) {
+                    LatLon ll = n.getCoor();
+                    if (ll != null && ll.isOutSideWorld()) {
+                        // Revert move
+                        if (c instanceof MoveCommand) {
+                            ((MoveCommand) c).resetToCheckpoint();
+                        }
+                        // TODO: We might use a simple notification in the lower left corner.
+                        JOptionPane.showMessageDialog(
+                                Main.parent,
+                                tr("Cannot move objects outside of the world."),
+                                tr("Warning"),
+                                JOptionPane.WARNING_MESSAGE);
+                        mv.setNewCursor(cursor, this);
+                        return false;
+                    }
+                }
+            } finally {
+                ds.endUpdate();
             }
         } else {
             startEN = currentEN; // drag can continue after scaling/rotation
 
-            if (mode != Mode.rotate && mode != Mode.scale) {
+            if (mode != Mode.ROTATE && mode != Mode.SCALE) {
                 return false;
             }
 
-            this.dataSet.beginUpdate();
-
-            if (mode == Mode.rotate) {
-                if (c instanceof RotateCommand && affectedNodes.equals(((RotateCommand) c).getTransformedNodes())) {
-                    ((RotateCommand) c).handleEvent(currentEN);
-                } else {
-                    Main.main.undoRedo.add(new RotateCommand(selection, currentEN));
+            ds.beginUpdate();
+            try {
+                if (mode == Mode.ROTATE) {
+                    if (c instanceof RotateCommand && affectedNodes.equals(((RotateCommand) c).getTransformedNodes())) {
+                        ((RotateCommand) c).handleEvent(currentEN);
+                    } else {
+                        MainApplication.undoRedo.add(new RotateCommand(selection, currentEN));
+                    }
+                } else if (mode == Mode.SCALE) {
+                    if (c instanceof ScaleCommand && affectedNodes.equals(((ScaleCommand) c).getTransformedNodes())) {
+                        ((ScaleCommand) c).handleEvent(currentEN);
+                    } else {
+                        MainApplication.undoRedo.add(new ScaleCommand(selection, currentEN));
+                    }
                 }
-            } else if (mode == Mode.scale) {
-                if (c instanceof ScaleCommand && affectedNodes.equals(((ScaleCommand) c).getTransformedNodes())) {
-                    ((ScaleCommand) c).handleEvent(currentEN);
-                } else {
-                    Main.main.undoRedo.add(new ScaleCommand(selection, currentEN));
-                }
-            }
 
-            Collection<Way> ways = this.dataSet.getSelectedWays();
-            if (doesImpactStatusLine(affectedNodes, ways)) {
-                Main.map.statusLine.setDist(ways);
+                Collection<Way> ways = ds.getSelectedWays();
+                if (doesImpactStatusLine(affectedNodes, ways)) {
+                    MainApplication.getMap().statusLine.setDist(ways);
+                }
+            } finally {
+                ds.endUpdate();
             }
         }
-        this.dataSet.endUpdate();
         return true;
     }
 
-    private boolean doesImpactStatusLine(Collection<Node> affectedNodes, Collection<Way> selectedWays) {
+    private static boolean doesImpactStatusLine(Collection<Node> affectedNodes, Collection<Way> selectedWays) {
         for (Way w : selectedWays) {
             for (Node n : w.getNodes()) {
                 if (affectedNodes.contains(n)) {
@@ -812,8 +819,13 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
      * Adapt last move command (if it is suitable) to work with next drag, started at point startEN
      */
     private void useLastMoveCommandIfPossible() {
-        Command c = getLastCommand();
-        Collection<Node> affectedNodes = AllNodesVisitor.getAllNodes(this.dataSet.getSelected());
+        DataSet dataSet = getLayerManager().getEditDataSet();
+        if (dataSet == null) {
+            // It may happen that there is no edit layer.
+            return;
+        }
+        Command c = getLastCommandInDataset(dataSet);
+        Collection<Node> affectedNodes = AllNodesVisitor.getAllNodes(dataSet.getSelected());
         if (c instanceof MoveCommand && affectedNodes.equals(((MoveCommand) c).getParticipatingPrimitives())) {
             // old command was created with different base point of movement, we need to recalculate it
             ((MoveCommand) c).changeStartPoint(startEN);
@@ -822,66 +834,106 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
 
     /**
      * Obtain command in undoRedo stack to "continue" when dragging
+     * @param ds The data set the command needs to be in.
+     * @return last command
      */
-    private Command getLastCommand() {
-        Command c = !Main.main.undoRedo.commands.isEmpty()
-                ? Main.main.undoRedo.commands.getLast() : null;
-        if (c instanceof SequenceCommand) {
-            c = ((SequenceCommand) c).getLastCommand();
+    private static Command getLastCommandInDataset(DataSet ds) {
+        Command lastCommand = MainApplication.undoRedo.getLastCommand();
+        if (lastCommand instanceof SequenceCommand) {
+            lastCommand = ((SequenceCommand) lastCommand).getLastCommand();
         }
-        return c;
+        if (lastCommand != null && ds.equals(lastCommand.getAffectedDataSet())) {
+            return lastCommand;
+        } else {
+            return null;
+        }
     }
 
     /**
-     * Present warning in case of large and possibly unwanted movements and undo
-     * unwanted movements.
+     * Present warning in the following cases and undo unwanted movements: <ul>
+     * <li>large and possibly unwanted movements</li>
+     * <li>movement of node with attached ways that are hidden by filters</li>
+     * </ul>
      *
      * @param e the mouse event causing the action (mouse released)
      */
     private void confirmOrUndoMovement(MouseEvent e) {
-        int max = Main.pref.getInteger("warn.move.maxelements", 20), limit = max;
-        for (OsmPrimitive osm : this.dataSet.getSelected()) {
-            if (osm instanceof Way) {
-                limit -= ((Way) osm).getNodes().size();
+        if (movesHiddenWay()) {
+            final ExtendedDialog ed = new ConfirmMoveDialog();
+            ed.setContent(tr("Are you sure that you want to move elements with attached ways that are hidden by filters?"));
+            ed.toggleEnable("movedHiddenElements");
+            ed.showDialog();
+            if (ed.getValue() != 1) {
+                MainApplication.undoRedo.undo();
             }
-            if ((limit -= 1) < 0) {
+        }
+        Set<Node> nodes = new HashSet<>();
+        int max = Config.getPref().getInt("warn.move.maxelements", 20);
+        for (OsmPrimitive osm : getLayerManager().getEditDataSet().getSelected()) {
+            if (osm instanceof Way) {
+                nodes.addAll(((Way) osm).getNodes());
+            } else if (osm instanceof Node) {
+                nodes.add((Node) osm);
+            }
+            if (nodes.size() > max) {
                 break;
             }
         }
-        if (limit < 0) {
-            ExtendedDialog ed = new ExtendedDialog(
-                    Main.parent,
-                    tr("Move elements"),
-                    new String[]{tr("Move them"), tr("Undo move")});
-            ed.setButtonIcons(new String[]{"reorder.png", "cancel.png"});
+        if (nodes.size() > max) {
+            final ExtendedDialog ed = new ConfirmMoveDialog();
             ed.setContent(
                     /* for correct i18n of plural forms - see #9110 */
-                    trn(
-                            "You moved more than {0} element. " + "Moving a large number of elements is often an error.\n" + "Really move them?",
-                            "You moved more than {0} elements. " + "Moving a large number of elements is often an error.\n" + "Really move them?",
-                            max, max));
-            ed.setCancelButton(2);
+                    trn("You moved more than {0} element. " + "Moving a large number of elements is often an error.\n" + "Really move them?",
+                        "You moved more than {0} elements. " + "Moving a large number of elements is often an error.\n" + "Really move them?",
+                        max, max));
             ed.toggleEnable("movedManyElements");
             ed.showDialog();
 
             if (ed.getValue() != 1) {
-                Main.main.undoRedo.undo();
+                MainApplication.undoRedo.undo();
             }
         } else {
             // if small number of elements were moved,
             updateKeyModifiers(e);
             if (ctrl) mergePrims(e.getPoint());
         }
-        this.dataSet.fireSelectionChanged();
+    }
+
+    static class ConfirmMoveDialog extends ExtendedDialog {
+        ConfirmMoveDialog() {
+            super(Main.parent,
+                    tr("Move elements"),
+                    tr("Move them"), tr("Undo move"));
+            setButtonIcons("reorder", "cancel");
+            setCancelButton(2);
+        }
+    }
+
+    private boolean movesHiddenWay() {
+        DataSet ds = getLayerManager().getEditDataSet();
+        final Collection<OsmPrimitive> elementsToTest = new HashSet<>(ds.getSelected());
+        for (Way osm : ds.getSelectedWays()) {
+            elementsToTest.addAll(osm.getNodes());
+        }
+        for (OsmPrimitive node : Utils.filteredCollection(elementsToTest, Node.class)) {
+            for (Way ref : Utils.filteredCollection(node.getReferrers(), Way.class)) {
+                if (ref.isDisabledAndHidden()) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**
      * Merges the selected nodes to the one closest to the given mouse position if the control
      * key is pressed. If there is no such node, no action will be done and no error will be
      * reported. If there is, it will execute the merge and add it to the undo buffer.
+     * @param p mouse position
      */
-    final private void mergePrims(Point p) {
-        Collection<Node> selNodes = this.dataSet.getSelectedNodes();
+    private void mergePrims(Point p) {
+        DataSet ds = getLayerManager().getEditDataSet();
+        Collection<Node> selNodes = ds.getSelectedNodes();
         if (selNodes.isEmpty())
             return;
 
@@ -889,24 +941,57 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
         if (target == null)
             return;
 
-        Collection<Node> nodesToMerge = new LinkedList<Node>(selNodes);
+        if (selNodes.size() == 1) {
+            // Move all selected primitive to preserve shape #10748
+            Collection<OsmPrimitive> selection = ds.getSelectedNodesAndWays();
+            Collection<Node> affectedNodes = AllNodesVisitor.getAllNodes(selection);
+            Command c = getLastCommandInDataset(ds);
+            ds.beginUpdate();
+            try {
+                if (c instanceof MoveCommand && affectedNodes.equals(((MoveCommand) c).getParticipatingPrimitives())) {
+                    Node selectedNode = selNodes.iterator().next();
+                    EastNorth selectedEN = selectedNode.getEastNorth();
+                    EastNorth targetEN = target.getEastNorth();
+                    ((MoveCommand) c).moveAgain(targetEN.getX() - selectedEN.getX(),
+                                                targetEN.getY() - selectedEN.getY());
+                }
+            } finally {
+                ds.endUpdate();
+            }
+        }
+
+        Collection<Node> nodesToMerge = new LinkedList<>(selNodes);
         nodesToMerge.add(target);
-        MergeNodesAction.doMergeNodes(Main.main.getEditLayer(), nodesToMerge, target);
+        mergeNodes(MainApplication.getLayerManager().getEditLayer(), nodesToMerge, target);
+    }
+
+    /**
+     * Merge nodes using {@code MergeNodesAction}.
+     * Can be overridden for testing purpose.
+     * @param layer layer the reference data layer. Must not be null
+     * @param nodes the collection of nodes. Ignored if null
+     * @param targetLocationNode this node's location will be used for the target node
+     */
+    public void mergeNodes(OsmDataLayer layer, Collection<Node> nodes,
+                           Node targetLocationNode) {
+        MergeNodesAction.doMergeNodes(layer, nodes, targetLocationNode);
     }
 
     /**
      * Tries to find a node to merge to when in move-merge mode for the current mouse
      * position. Either returns the node or null, if no suitable one is nearby.
+     * @param p mouse position
+     * @return node to merge to, or null
      */
-    final private Node findNodeToMergeTo(Point p) {
+    private Node findNodeToMergeTo(Point p) {
         Collection<Node> target = mv.getNearestNodes(p,
-        		this.dataSet.getSelectedNodes(),
-                OsmPrimitive.isSelectablePredicate);
+                getLayerManager().getEditDataSet().getSelectedNodes(),
+                mv.isSelectablePredicate);
         return target.isEmpty() ? null : target.iterator().next();
     }
 
     private void selectPrims(Collection<OsmPrimitive> prims, boolean released, boolean area) {
-        DataSet ds = this.dataSet;
+        DataSet ds = getLayerManager().getActiveDataSet();
 
         // not allowed together: do not change dataset selection, return early
         // Virtual Ways: if non-empty the cursor is above a virtual node. So don't highlight
@@ -940,28 +1025,39 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
         }
     }
 
+    /**
+     * Returns the current select mode.
+     * @return the select mode
+     * @since 7543
+     */
+    public final Mode getMode() {
+        return mode;
+    }
+
     @Override
     public String getModeHelpText() {
         if (mouseDownButton == MouseEvent.BUTTON1 && mouseReleaseTime < mouseDownTime) {
-            if (mode == Mode.select)
+            if (mode == Mode.SELECT)
                 return tr("Release the mouse button to select the objects in the rectangle.");
-            else if (mode == Mode.move && (System.currentTimeMillis() - mouseDownTime >= initialMoveDelay)) {
-                final boolean canMerge = this.dataSet!=null && !this.dataSet.getSelectedNodes().isEmpty();
-                final String mergeHelp = canMerge ? (" " + tr("Ctrl to merge with nearest node.")) : "";
+            else if (mode == Mode.MOVE && (System.currentTimeMillis() - mouseDownTime >= initialMoveDelay)) {
+                final DataSet ds = getLayerManager().getEditDataSet();
+                final boolean canMerge = ds != null && !ds.getSelectedNodes().isEmpty();
+                final String mergeHelp = canMerge ? (' ' + tr("Ctrl to merge with nearest node.")) : "";
                 return tr("Release the mouse button to stop moving.") + mergeHelp;
-            } else if (mode == Mode.rotate)
+            } else if (mode == Mode.ROTATE)
                 return tr("Release the mouse button to stop rotating.");
-            else if (mode == Mode.scale)
+            else if (mode == Mode.SCALE)
                 return tr("Release the mouse button to stop scaling.");
         }
-        return tr("Move objects by dragging; Shift to add to selection (Ctrl to toggle); Shift-Ctrl to rotate selected; Alt-Ctrl to scale selected; or change selection");
+        return tr("Move objects by dragging; Shift to add to selection (Ctrl to toggle); Shift-Ctrl to rotate selected; " +
+                  "Alt-Ctrl to scale selected; or change selection");
     }
 
     @Override
     public boolean layerIsSupported(Layer l) {
         return l instanceof AMATOsmDataLayer;
     }
-
+    
     /**
      * Enable or diable the lasso mode
      * @param lassoMode true to enable the lasso mode, false otherwise
@@ -971,22 +1067,22 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
         this.lassoMode = lassoMode;
     }
 
-    CycleManager cycleManager = new CycleManager();
-    VirtualManager virtualManager = new VirtualManager();
+    private final transient CycleManager cycleManager = new CycleManager();
+    private final transient VirtualManager virtualManager = new VirtualManager();
 
     private class CycleManager {
 
         private Collection<OsmPrimitive> cycleList = Collections.emptyList();
-        private boolean cyclePrims = false;
-        private OsmPrimitive cycleStart = null;
+        private boolean cyclePrims;
+        private OsmPrimitive cycleStart;
         private boolean waitForMouseUpParameter;
         private boolean multipleMatchesParameter;
         /**
          * read preferences
          */
         private void init() {
-            waitForMouseUpParameter = Main.pref.getBoolean("mappaint.select.waits-for-mouse-up", false);
-            multipleMatchesParameter = Main.pref.getBoolean("selectaction.cycles.multiple.matches", false);
+            waitForMouseUpParameter = Config.getPref().getBoolean("mappaint.select.waits-for-mouse-up", false);
+            multipleMatchesParameter = Config.getPref().getBoolean("selectaction.cycles.multiple.matches", false);
         }
 
         /**
@@ -1007,11 +1103,11 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
 
                     if (waitForMouseUpParameter) {
                         // prefer a selected nearest node or way, if possible
-                        osm = mv.getNearestNodeOrWay(p, OsmPrimitive.isSelectablePredicate, true);
+                        osm = mv.getNearestNodeOrWay(p, mv.isSelectablePredicate, true);
                     }
                 } else {
                     // Alt + left mouse button pressed: we need to build cycle list
-                    cycleList = mv.getAllNearest(p, OsmPrimitive.isSelectablePredicate);
+                    cycleList = mv.getAllNearest(p, mv.isSelectablePredicate);
 
                     if (cycleList.size() > 1) {
                         cyclePrims = false;
@@ -1053,17 +1149,15 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
          * @return the next element of cycle list
          */
         private Collection<OsmPrimitive> cyclePrims() {
-            OsmPrimitive nxt = null;
-
             if (cycleList.size() <= 1) {
                 // no real cycling, just return one-element collection with nearest primitive in it
                 return cycleList;
             }
-//          updateKeyModifiers(e); // already called before !
+            // updateKeyModifiers() already called before!
 
             DataSet ds = AMATSelectAction.this.dataSet;
             OsmPrimitive first = cycleList.iterator().next(), foundInDS = null;
-            nxt = first;
+            OsmPrimitive nxt = first;
 
             if (cyclePrims && shift) {
                 for (Iterator<OsmPrimitive> i = cycleList.iterator(); i.hasNext();) {
@@ -1103,7 +1197,7 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
                     }
                 } else {
                     // setup for iterating a sel group again or a new, different one..
-                    nxt = (cycleList.contains(cycleStart)) ? cycleStart : first;
+                    nxt = cycleList.contains(cycleStart) ? cycleStart : first;
                     cycleStart = nxt;
                 }
             } else {
@@ -1116,17 +1210,17 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
 
     private class VirtualManager {
 
-        private Node virtualNode = null;
-        private Collection<WaySegment> virtualWays = new LinkedList<WaySegment>();
+        private Node virtualNode;
+        private Collection<WaySegment> virtualWays = new LinkedList<>();
         private int nodeVirtualSize;
         private int virtualSnapDistSq2;
         private int virtualSpace;
 
         private void init() {
-            nodeVirtualSize = Main.pref.getInteger("mappaint.node.virtual-size", 8);
-            int virtualSnapDistSq = Main.pref.getInteger("mappaint.node.virtual-snap-distance", 8);
+            nodeVirtualSize = Config.getPref().getInt("mappaint.node.virtual-size", 8);
+            int virtualSnapDistSq = Config.getPref().getInt("mappaint.node.virtual-snap-distance", 8);
             virtualSnapDistSq2 = virtualSnapDistSq*virtualSnapDistSq;
-            virtualSpace = Main.pref.getInteger("mappaint.node.virtual-space", 70);
+            virtualSpace = Config.getPref().getInt("mappaint.node.virtual-space", 70);
         }
 
         /**
@@ -1143,24 +1237,25 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
         private boolean activateVirtualNodeNearPoint(Point p) {
             if (nodeVirtualSize > 0) {
 
-                Collection<WaySegment> selVirtualWays = new LinkedList<WaySegment>();
-                Pair<Node, Node> vnp = null, wnp = new Pair<Node, Node>(null, null);
+                Collection<WaySegment> selVirtualWays = new LinkedList<>();
+                Pair<Node, Node> vnp = null, wnp = new Pair<>(null, null);
 
-                Way w = null;
-                for (WaySegment ws : mv.getNearestWaySegments(p, OsmPrimitive.isSelectablePredicate)) {
-                    w = ws.way;
+                for (WaySegment ws : mv.getNearestWaySegments(p, mv.isSelectablePredicate)) {
+                    Way w = ws.way;
 
-                    Point2D p1 = mv.getPoint2D(wnp.a = w.getNode(ws.lowerIndex));
-                    Point2D p2 = mv.getPoint2D(wnp.b = w.getNode(ws.lowerIndex + 1));
+                    wnp.a = w.getNode(ws.lowerIndex);
+                    wnp.b = w.getNode(ws.lowerIndex + 1);
+                    MapViewPoint p1 = mv.getState().getPointFor(wnp.a);
+                    MapViewPoint p2 = mv.getState().getPointFor(wnp.b);
                     if (WireframeMapRenderer.isLargeSegment(p1, p2, virtualSpace)) {
-                        Point2D pc = new Point2D.Double((p1.getX() + p2.getX()) / 2, (p1.getY() + p2.getY()) / 2);
+                        Point2D pc = new Point2D.Double((p1.getInViewX() + p2.getInViewX()) / 2, (p1.getInViewY() + p2.getInViewY()) / 2);
                         if (p.distanceSq(pc) < virtualSnapDistSq2) {
                             // Check that only segments on top of each other get added to the
                             // virtual ways list. Otherwise ways that coincidentally have their
                             // virtual node at the same spot will be joined which is likely unwanted
                             Pair.sort(wnp);
                             if (vnp == null) {
-                                vnp = new Pair<Node, Node>(wnp.a, wnp.b);
+                                vnp = new Pair<>(wnp.a, wnp.b);
                                 virtualNode = new Node(mv.getLatLon(pc.getX(), pc.getY()));
                             }
                             if (vnp.equals(wnp)) {
@@ -1182,20 +1277,21 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
         }
 
         private void createMiddleNodeFromVirtual(EastNorth currentEN) {
-            Collection<Command> virtualCmds = new LinkedList<Command>();
-            virtualCmds.add(new AddCommand(virtualNode));
+            DataSet ds = AMATSelectAction.this.dataSet;
+            Collection<Command> virtualCmds = new LinkedList<>();
+            virtualCmds.add(new AddCommand(ds, virtualNode));
             for (WaySegment virtualWay : virtualWays) {
                 Way w = virtualWay.way;
                 Way wnew = new Way(w);
                 wnew.addNode(virtualWay.lowerIndex + 1, virtualNode);
-                virtualCmds.add(new ChangeCommand(w, wnew));
+                virtualCmds.add(new ChangeCommand(ds, w, wnew));
             }
-            virtualCmds.add(new MoveCommand(virtualNode, startEN, currentEN));
+            virtualCmds.add(new MoveCommand(ds, virtualNode, startEN, currentEN));
             String text = trn("Add and move a virtual new node to way",
                     "Add and move a virtual new node to {0} ways", virtualWays.size(),
                     virtualWays.size());
-            Main.main.undoRedo.add(new SequenceCommand(text, virtualCmds));
-            AMATSelectAction.this.dataSet.setSelected(Collections.singleton((OsmPrimitive) virtualNode));
+            MainApplication.undoRedo.add(new SequenceCommand(text, virtualCmds));
+            ds.setSelected(Collections.singleton((OsmPrimitive) virtualNode));
             clear();
         }
 
@@ -1211,5 +1307,15 @@ public class AMATSelectAction extends MapMode implements AWTEventListener, Selec
         private boolean hasVirtualWaysToBeConstructed() {
             return !virtualWays.isEmpty();
         }
+    }
+
+    /**
+     * Returns {@code o} as collection of {@code o}'s type.
+     * @param <T> object type
+     * @param o any object
+     * @return {@code o} as collection of {@code o}'s type.
+     */
+    protected static <T> Collection<T> asColl(T o) {
+        return o == null ? Collections.emptySet() : Collections.singleton(o);
     }
 }

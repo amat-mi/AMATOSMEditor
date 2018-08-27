@@ -34,6 +34,7 @@ import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.RelationMember;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.gui.ExtendedDialog;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.NavigatableComponent;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.mappaint.Cascade;
@@ -45,7 +46,6 @@ import org.openstreetmap.josm.gui.mappaint.StyleElementList;
 import org.openstreetmap.josm.gui.mappaint.StyleSource;
 import org.openstreetmap.josm.gui.mappaint.mapcss.MapCSSStyleSource;
 import org.openstreetmap.josm.gui.mappaint.styleelement.StyleElement;
-import org.openstreetmap.josm.gui.mappaint.xml.XmlStyleSource;
 import org.openstreetmap.josm.gui.util.WindowGeometry;
 import org.openstreetmap.josm.gui.widgets.JosmTextArea;
 import org.openstreetmap.josm.tools.GBC;
@@ -339,9 +339,9 @@ public class AMATInspectPrimitiveDialog extends ExtendedDialog {
     }
 
     protected void createMapPaintText() {
-        final Collection<OsmPrimitive> sel = Main.main.getCurrentDataSet().getAllSelected();
+        final Collection<OsmPrimitive> sel = MainApplication.getLayerManager().getActiveDataSet().getAllSelected();
         ElemStyles elemstyles = MapPaintStyles.getStyles();
-        NavigatableComponent nc = Main.map.mapView;
+        NavigatableComponent nc = MainApplication.getMap().mapView;
         double scale = nc.getDist100Pixel();
 
         for (OsmPrimitive osm : sel) {
@@ -371,8 +371,8 @@ public class AMATInspectPrimitiveDialog extends ExtendedDialog {
 
         if (sel.size() == 2) {
             List<OsmPrimitive> selList = new ArrayList<OsmPrimitive>(sel);
-            StyleCache sc1 = selList.get(0).mappaintStyle;
-            StyleCache sc2 = selList.get(1).mappaintStyle;
+            StyleCache sc1 = selList.get(0).getCachedStyle();
+            StyleCache sc2 = selList.get(1).getCachedStyle();
             if (sc1 == sc2) {
                 txtMappaint.append(tr("The 2 selected objects have identical style caches."));
             }
@@ -386,9 +386,7 @@ public class AMATInspectPrimitiveDialog extends ExtendedDialog {
     }
 
     private String getSort(StyleSource s) {
-        if (s instanceof XmlStyleSource) {
-            return tr("xml");
-        } else if (s instanceof MapCSSStyleSource) {
+        if (s instanceof MapCSSStyleSource) {
             return tr("mapcss");
         } else {
             return tr("unknown");
