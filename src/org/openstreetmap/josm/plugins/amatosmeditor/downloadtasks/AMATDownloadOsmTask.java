@@ -17,7 +17,6 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import org.openstreetmap.josm.actions.downloadtasks.AbstractDownloadTask;
-import org.openstreetmap.josm.actions.downloadtasks.DownloadOsmTask;
 import org.openstreetmap.josm.actions.downloadtasks.DownloadParams;
 import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.DataSource;
@@ -57,6 +56,11 @@ public class AMATDownloadOsmTask extends AbstractDownloadTask<DataSet> {
     protected DownloadTask downloadTask;
 
     protected String newLayerName;
+	private boolean deletePreviousData;
+
+    public AMATDownloadOsmTask(boolean deletePreviousData) {
+		this.deletePreviousData = deletePreviousData;
+	}
 
     /** This allows subclasses to ignore this warning */
     protected boolean warnAboutEmptyArea = true;
@@ -113,7 +117,8 @@ public class AMATDownloadOsmTask extends AbstractDownloadTask<DataSet> {
      */
     @Deprecated
     public Future<?> download(OsmServerReader reader, boolean newLayer, Bounds downloadArea, ProgressMonitor progressMonitor) {
-        return download(new DownloadTask(new DownloadParams().withNewLayer(newLayer), reader, progressMonitor, zoomAfterDownload),
+        return download(new DownloadTask(new DownloadParams().withNewLayer(newLayer), reader, progressMonitor, zoomAfterDownload,
+        		this.deletePreviousData),
                 downloadArea);
     }
 
@@ -155,7 +160,7 @@ public class AMATDownloadOsmTask extends AbstractDownloadTask<DataSet> {
      * @since 13927
      */
     public Future<?> download(OsmServerReader reader, DownloadParams settings, Bounds downloadArea, ProgressMonitor progressMonitor) {
-        return download(new DownloadTask(settings, reader, progressMonitor, zoomAfterDownload), downloadArea);
+        return download(new DownloadTask(settings, reader, progressMonitor, zoomAfterDownload, this.deletePreviousData), downloadArea);
     }
 
     protected Future<?> download(DownloadTask downloadTask, Bounds downloadArea) {
@@ -185,7 +190,8 @@ public class AMATDownloadOsmTask extends AbstractDownloadTask<DataSet> {
         String newUrl = modifyUrlBeforeLoad(url);
         downloadTask = new DownloadTask(settings,
                 new OsmServerLocationReader(newUrl),
-                progressMonitor);
+                progressMonitor,
+                this.deletePreviousData);
         currentBounds = null;
         // Extract .osm filename from URL to set the new layer name
         extractOsmFilename(settings, "https?://.*/(.*\\.osm)", newUrl);
@@ -225,6 +231,7 @@ public class AMATDownloadOsmTask extends AbstractDownloadTask<DataSet> {
 
         protected final DownloadParams settings;
         protected final boolean zoomAfterDownload;
+        protected final boolean deletePreviousData;
         protected DataSet dataSet;
 
         /**
@@ -236,10 +243,12 @@ public class AMATDownloadOsmTask extends AbstractDownloadTask<DataSet> {
          * then use false unless you read result of task (because exception will get lost if you don't)
          * @param zoomAfterDownload If true, the map view will zoom to download area after download
          */
-        public AbstractInternalTask(DownloadParams settings, String title, boolean ignoreException, boolean zoomAfterDownload) {
+        public AbstractInternalTask(DownloadParams settings, String title, boolean ignoreException, boolean zoomAfterDownload,
+        		boolean deletePreviousData) {
             super(title, ignoreException);
             this.settings = Objects.requireNonNull(settings);
             this.zoomAfterDownload = zoomAfterDownload;
+            this.deletePreviousData = deletePreviousData;
         }
 
         /**
@@ -253,10 +262,11 @@ public class AMATDownloadOsmTask extends AbstractDownloadTask<DataSet> {
          * @param zoomAfterDownload If true, the map view will zoom to download area after download
          */
         public AbstractInternalTask(DownloadParams settings, String title, ProgressMonitor progressMonitor, boolean ignoreException,
-                boolean zoomAfterDownload) {
+                boolean zoomAfterDownload, boolean deletePreviousData) {
             super(title, progressMonitor, ignoreException);
             this.settings = Objects.requireNonNull(settings);
             this.zoomAfterDownload = zoomAfterDownload;
+            this.deletePreviousData = deletePreviousData;
         }
 
         protected AMATOsmDataLayer getEditLayer() {
@@ -337,6 +347,10 @@ public class AMATDownloadOsmTask extends AbstractDownloadTask<DataSet> {
                 if (layer == null || !layer.isDownloadable()) {
                     layer = getFirstModifiableDataLayer();
                 }
+            	//If requested, delete previous data from the layer
+            	if(deletePreviousData)
+            		layer.data.clear();
+            	
                 Collection<OsmPrimitive> primitivesToUpdate = searchPrimitivesToUpdate(bounds, layer.getDataSet());
                 layer.mergeFrom(dataSet);
                 MapFrame map = MainApplication.getMap();
@@ -394,8 +408,8 @@ public class AMATDownloadOsmTask extends AbstractDownloadTask<DataSet> {
          * @deprecated Use {@code DownloadTask(DownloadParams, OsmServerReader, ProgressMonitor)}
          */
         @Deprecated
-        public DownloadTask(boolean newLayer, OsmServerReader reader, ProgressMonitor progressMonitor) {
-            this(new DownloadParams().withNewLayer(newLayer), reader, progressMonitor);
+        public DownloadTask(boolean newLayer, OsmServerReader reader, ProgressMonitor progressMonitor, boolean deletePreviousData) {
+            this(new DownloadParams().withNewLayer(newLayer), reader, progressMonitor, deletePreviousData);
         }
 
         /**
@@ -407,8 +421,9 @@ public class AMATDownloadOsmTask extends AbstractDownloadTask<DataSet> {
          * @deprecated Use {@code DownloadTask(DownloadParams, OsmServerReader, ProgressMonitor, boolean)}
          */
         @Deprecated
-        public DownloadTask(boolean newLayer, OsmServerReader reader, ProgressMonitor progressMonitor, boolean zoomAfterDownload) {
-            this(new DownloadParams().withNewLayer(newLayer), reader, progressMonitor, zoomAfterDownload);
+        public DownloadTask(boolean newLayer, OsmServerReader reader, ProgressMonitor progressMonitor, boolean zoomAfterDownload,
+        		boolean deletePreviousData) {
+            this(new DownloadParams().withNewLayer(newLayer), reader, progressMonitor, zoomAfterDownload, deletePreviousData);
         }
 
         /**
@@ -418,8 +433,8 @@ public class AMATDownloadOsmTask extends AbstractDownloadTask<DataSet> {
          * @param progressMonitor progress monitor
          * @since 13927
          */
-        public DownloadTask(DownloadParams settings, OsmServerReader reader, ProgressMonitor progressMonitor) {
-            this(settings, reader, progressMonitor, true);
+        public DownloadTask(DownloadParams settings, OsmServerReader reader, ProgressMonitor progressMonitor, boolean deletePreviousData) {
+            this(settings, reader, progressMonitor, true, deletePreviousData);
         }
 
         /**
@@ -430,8 +445,9 @@ public class AMATDownloadOsmTask extends AbstractDownloadTask<DataSet> {
          * @param zoomAfterDownload If true, the map view will zoom to download area after download
          * @since 13927
          */
-        public DownloadTask(DownloadParams settings, OsmServerReader reader, ProgressMonitor progressMonitor, boolean zoomAfterDownload) {
-            super(settings, tr("Downloading data"), progressMonitor, false, zoomAfterDownload);
+        public DownloadTask(DownloadParams settings, OsmServerReader reader, ProgressMonitor progressMonitor, boolean zoomAfterDownload,
+        		boolean deletePreviousData) {
+            super(settings, tr("Downloading data"), progressMonitor, false, zoomAfterDownload, deletePreviousData);
             this.reader = reader;
         }
 
@@ -500,7 +516,7 @@ public class AMATDownloadOsmTask extends AbstractDownloadTask<DataSet> {
             if (urlString.matches(PATTERN_OSM_API_URL)) {
                 // TODO: proper i18n after stabilization
                 Collection<String> items = new ArrayList<>();
-                items.add(tr("AMAT OSM Server URL:") + ' ' + url.getHost());
+                items.add(tr("AMATOSM Server URL:") + ' ' + url.getHost());
                 items.add(tr("Command")+": "+url.getPath());
                 if (url.getQuery() != null) {
                     items.add(tr("Request details: {0}", url.getQuery().replaceAll(",\\s*", ", ")));
