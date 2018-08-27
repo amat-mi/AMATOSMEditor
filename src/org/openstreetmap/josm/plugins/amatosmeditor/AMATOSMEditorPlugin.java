@@ -10,6 +10,7 @@ import org.openstreetmap.josm.gui.layer.LayerManager.LayerAddEvent;
 import org.openstreetmap.josm.gui.layer.LayerManager.LayerChangeListener;
 import org.openstreetmap.josm.gui.layer.LayerManager.LayerOrderChangeEvent;
 import org.openstreetmap.josm.gui.layer.LayerManager.LayerRemoveEvent;
+import org.openstreetmap.josm.gui.layer.LayerPositionStrategy;
 import org.openstreetmap.josm.gui.layer.MainLayerManager.ActiveLayerChangeEvent;
 import org.openstreetmap.josm.gui.layer.MainLayerManager.ActiveLayerChangeListener;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
@@ -93,7 +94,10 @@ public class AMATOSMEditorPlugin extends Plugin implements LayerChangeListener, 
 			copyAction.setSrcLayer(newLayer);
 			compareAction.setSrcLayer(newLayer);
 			selectAction.setLayer(newLayer);
-			mapFrame.mapView.moveLayer(newLayer, 99999);
+//			//mapFrame.mapView.moveLayer(newLayer, 99999);
+//			//int position = LayerPositionStrategy.BEFORE_FIRST_BACKGROUND_LAYER.getPosition(MainApplication.getLayerManager());
+//			int position = LayerPositionStrategy.AFTER_LAST_DATA_LAYER.getPosition(MainApplication.getLayerManager());
+//			MainApplication.getLayerManager().moveLayer(newLayer, position);
 		}
 	}
 

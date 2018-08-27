@@ -100,6 +100,7 @@ import org.openstreetmap.josm.gui.io.importexport.OsmImporter;
 import org.openstreetmap.josm.gui.layer.AbstractOsmDataLayer;
 import org.openstreetmap.josm.gui.layer.GpxLayer;
 import org.openstreetmap.josm.gui.layer.Layer;
+import org.openstreetmap.josm.gui.layer.LayerPositionStrategy;
 import org.openstreetmap.josm.gui.layer.markerlayer.MarkerLayer;
 import org.openstreetmap.josm.gui.progress.ProgressMonitor;
 import org.openstreetmap.josm.gui.progress.swing.PleaseWaitProgressMonitor;
@@ -456,7 +457,19 @@ public class AMATOsmDataLayer extends AbstractOsmDataLayer implements Listener, 
         return base.get();
     }
 
-    /**
+    
+    /* (non-Javadoc)
+	 * @see org.openstreetmap.josm.gui.layer.Layer#getDefaultLayerPosition()
+	 */
+	@Override
+	/**
+	 * Olways put this layers behind others but over backgrounds.
+	 */
+	public LayerPositionStrategy getDefaultLayerPosition() {
+        return LayerPositionStrategy.BEFORE_FIRST_BACKGROUND_LAYER;
+	}
+	
+	/**
      * Draw all primitives in this layer but do not draw modified ones (they
      * are drawn by the edit layer).
      * Draw nodes last to overlap the ways they belong to.
