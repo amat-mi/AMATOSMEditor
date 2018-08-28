@@ -289,7 +289,7 @@ public class AMATSelectAction extends MapMode implements ModifierExListener, Key
      */
     private boolean giveUserFeedback(MouseEvent e, int modifiers) {
         Optional<OsmPrimitive> c = Optional.ofNullable(
-                mv.getNearestNodeOrWay(e.getPoint(), mv.isSelectablePredicate, true));
+                amatNC.getAMATNearestNodeOrWay(e.getPoint(), mv.isSelectablePredicate, true));
 
         updateKeyModifiersEx(modifiers);
         determineMapMode(c.isPresent());
@@ -444,7 +444,7 @@ public class AMATSelectAction extends MapMode implements ModifierExListener, Key
 
         // primitives under cursor are stored in c collection
 
-        OsmPrimitive nearestPrimitive = mv.getNearestNodeOrWay(e.getPoint(), mv.isSelectablePredicate, true);
+        OsmPrimitive nearestPrimitive = amatNC.getAMATNearestNodeOrWay(e.getPoint(), mv.isSelectablePredicate, true);
 
         determineMapMode(nearestPrimitive != null);
 
@@ -725,7 +725,7 @@ public class AMATSelectAction extends MapMode implements ModifierExListener, Key
         DataSet ds = this.dataSet;
         Collection<OsmPrimitive> selection = ds.getSelectedNodesAndWays();
         if (selection.isEmpty()) { // if nothing was selected to drag, just select nearest node/way to the cursor
-            OsmPrimitive nearestPrimitive = mv.getNearestNodeOrWay(mv.getPoint(startEN), mv.isSelectablePredicate, true);
+            OsmPrimitive nearestPrimitive = amatNC.getAMATNearestNodeOrWay(mv.getPoint(startEN), mv.isSelectablePredicate, true);
             ds.setSelected(nearestPrimitive);
         }
 
@@ -1099,7 +1099,7 @@ public class AMATSelectAction extends MapMode implements ModifierExListener, Key
 
                     if (waitForMouseUpParameter) {
                         // prefer a selected nearest node or way, if possible
-                        osm = mv.getNearestNodeOrWay(p, mv.isSelectablePredicate, true);
+                        osm = amatNC.getAMATNearestNodeOrWay(p, mv.isSelectablePredicate, true);
                     }
                 } else {
                     // Alt + left mouse button pressed: we need to build cycle list

@@ -382,7 +382,7 @@ public class AMATSelectionManager implements MouseListener, MouseMotionListener,
 
         if (clicked) {
             Point center = new Point(selectionResult.xpoints[0], selectionResult.ypoints[0]);
-            OsmPrimitive osm = dataComp.getNearestNodeOrWay(center, OsmPrimitive::isSelectable, false);
+            OsmPrimitive osm = dataComp.getAMATNearestNodeOrWay(center, OsmPrimitive::isSelectable, false);
             if (osm != null) {
                 selection.add(osm);
             }
