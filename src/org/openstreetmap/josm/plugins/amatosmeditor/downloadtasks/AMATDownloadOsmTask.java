@@ -191,6 +191,7 @@ public class AMATDownloadOsmTask extends AbstractDownloadTask<DataSet> {
         downloadTask = new DownloadTask(settings,
                 new OsmServerLocationReader(newUrl),
                 progressMonitor,
+                zoomAfterDownload,
                 this.deletePreviousData);
         currentBounds = null;
         // Extract .osm filename from URL to set the new layer name
