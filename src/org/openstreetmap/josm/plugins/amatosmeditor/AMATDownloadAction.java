@@ -103,7 +103,7 @@ public class AMATDownloadAction extends JosmAction implements LayerChangeListene
 		DownloadTask task = new AMATDownloadOsmTask(deletePreviousData);
 		Future<?> future = null;
 		try {
-			future = task.loadUrl(new DownloadParams().withNewLayer(true), url, monitor);
+			future = task.loadUrl(new DownloadParams().withNewLayer(false), url, monitor);
 		} catch (IllegalArgumentException e) {
 			Logging.error(e);
 		}
