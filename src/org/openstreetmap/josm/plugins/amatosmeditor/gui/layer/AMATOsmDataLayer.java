@@ -238,7 +238,8 @@ public class AMATOsmDataLayer extends AbstractOsmDataLayer implements Listener, 
     }
 
     static String createLayerName(Object arg) {
-        return tr("Data Layer {0}", arg);
+//        return tr("Data Layer {0}", arg);
+        return tr("AMAT {0}", arg);
     }
 
     static final class LruCache extends LinkedHashMap<Relation, Void> {
