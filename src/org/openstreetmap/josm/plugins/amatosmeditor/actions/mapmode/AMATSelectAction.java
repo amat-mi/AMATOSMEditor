@@ -81,7 +81,13 @@ public class AMATSelectAction extends MapMode implements ModifierExListener, Key
 	protected Layer layer;
 	protected DataSet dataSet;
 	protected AMATNavigatableComponent amatNC;
-    
+
+	@Override
+	protected void updateEnabledState() {
+		super.updateEnabledState();
+		setEnabled(isEnabled() && dataSet != null);
+	}
+
 	public void setLayer(Layer newLayer) {
 		layer = null;
 		dataSet = null;		
@@ -292,7 +298,7 @@ public class AMATSelectAction extends MapMode implements ModifierExListener, Key
 
         virtualManager.clear();
         if (mode == Mode.MOVE && !dragInProgress() && virtualManager.activateVirtualNodeNearPoint(e.getPoint())) {
-            DataSet ds = getLayerManager().getActiveDataSet();
+            DataSet ds = this.dataSet;
             if (ds != null && drawTargetHighlight) {
                 ds.setHighlightedVirtualNodes(virtualManager.virtualWays);
             }
@@ -338,7 +344,7 @@ public class AMATSelectAction extends MapMode implements ModifierExListener, Key
             if (dragInProgress()) {
                 // only consider merge if ctrl is pressed and there are nodes in
                 // the selection that could be merged
-                if (!ctrl || getLayerManager().getEditDataSet().getSelectedNodes().isEmpty()) {
+                if (!ctrl || this.dataSet.getSelectedNodes().isEmpty()) {
                     c = "move";
                     break;
                 }
@@ -380,7 +386,7 @@ public class AMATSelectAction extends MapMode implements ModifierExListener, Key
      */
     private boolean removeHighlighting() {
         boolean needsRepaint = false;
-        OsmData<?, ?, ?, ?> ds = getLayerManager().getActiveData();
+        OsmData<?, ?, ?, ?> ds = this.dataSet;
         if (ds != null && !ds.getHighlightedVirtualNodes().isEmpty()) {
             needsRepaint = true;
             ds.clearHighlightedVirtualNodes();
@@ -446,7 +452,7 @@ public class AMATSelectAction extends MapMode implements ModifierExListener, Key
         case ROTATE:
         case SCALE:
             //  if nothing was selected, select primitive under cursor for scaling or rotating
-            DataSet ds = getLayerManager().getEditDataSet();
+            DataSet ds = this.dataSet;
             if (ds.selectionEmpty()) {
                 ds.setSelected(asColl(nearestPrimitive));
             }
@@ -534,7 +540,7 @@ public class AMATSelectAction extends MapMode implements ModifierExListener, Key
         if (mode == Mode.MOVE) {
             // If ctrl is pressed we are in merge mode. Look for a nearby node,
             // highlight it and adjust the cursor accordingly.
-            final boolean canMerge = ctrl && !getLayerManager().getEditDataSet().getSelectedNodes().isEmpty();
+            final boolean canMerge = ctrl && !this.dataSet.getSelectedNodes().isEmpty();
             final OsmPrimitive p = canMerge ? findNodeToMergeTo(e.getPoint()) : null;
             boolean needsRepaint = removeHighlighting();
             if (p != null) {
@@ -609,7 +615,7 @@ public class AMATSelectAction extends MapMode implements ModifierExListener, Key
             selectionManager.unregister(mv);
 
             // Select Draw Tool if no selection has been made
-            if (!cancelDrawMode && getLayerManager().getActiveDataSet().selectionEmpty()) {
+            if (!cancelDrawMode && this.dataSet.selectionEmpty()) {
                 map.selectDrawTool(true);
                 updateStatusLine();
                 return;
@@ -627,7 +633,7 @@ public class AMATSelectAction extends MapMode implements ModifierExListener, Key
                     selectPrims(cycleManager.cyclePrims(), true, false);
 
                     // If the user double-clicked a node, change to draw mode
-                    Collection<OsmPrimitive> c = getLayerManager().getEditDataSet().getSelected();
+                    Collection<OsmPrimitive> c = this.dataSet.getSelected();
                     if (e.getClickCount() >= 2 && c.size() == 1 && c.iterator().next() instanceof Node) {
                         // We need to do it like this as otherwise drawAction will see a double
                         // click and switch back to SelectMode
@@ -640,7 +646,8 @@ public class AMATSelectAction extends MapMode implements ModifierExListener, Key
             }
         }
 
-        mode = null;
+//        mode = null;
+        mode = Mode.SELECT;
 
         // simply remove any highlights if the middle click popup is active because
         // the highlights don't depend on the cursor position there. If something was
@@ -659,7 +666,7 @@ public class AMATSelectAction extends MapMode implements ModifierExListener, Key
         updateKeyModifiers(e);
         Collection<OsmPrimitive> selected = selectionManager.getSelectedObjects(alt);
         selectPrims(selected, true, true);
-        if(selected != null & !selected.isEmpty()) {
+        if(selected != null && !selected.isEmpty()) {
         	AMATInspectPrimitiveDialog dialog = new AMATInspectPrimitiveDialog(selected, layer);
         	dialog.showDialog();
         }        	
@@ -693,19 +700,8 @@ public class AMATSelectAction extends MapMode implements ModifierExListener, Key
      * @param hasSelectionNearby {@code true} if some primitves are selectable nearby
      */
     private void determineMapMode(boolean hasSelectionNearby) {
-        if (getLayerManager().getEditDataSet() != null) {
-            if (shift && ctrl) {
-                mode = Mode.ROTATE;
-            } else if (alt && ctrl) {
-                mode = Mode.SCALE;
-            } else if (hasSelectionNearby || dragInProgress()) {
-                mode = Mode.MOVE;
-            } else {
-                mode = Mode.SELECT;
-            }
-        } else {
-            mode = Mode.SELECT;
-        }
+       	//NOOO!!! Only select is supported!!!
+        mode = Mode.SELECT;
     }
 
     /**
@@ -726,7 +722,7 @@ public class AMATSelectAction extends MapMode implements ModifierExListener, Key
     private boolean updateCommandWhileDragging(EastNorth currentEN) {
         // Currently we support only transformations which do not affect relations.
         // So don't add them in the first place to make handling easier
-        DataSet ds = getLayerManager().getEditDataSet();
+        DataSet ds = this.dataSet;
         Collection<OsmPrimitive> selection = ds.getSelectedNodesAndWays();
         if (selection.isEmpty()) { // if nothing was selected to drag, just select nearest node/way to the cursor
             OsmPrimitive nearestPrimitive = mv.getNearestNodeOrWay(mv.getPoint(startEN), mv.isSelectablePredicate, true);
@@ -819,7 +815,7 @@ public class AMATSelectAction extends MapMode implements ModifierExListener, Key
      * Adapt last move command (if it is suitable) to work with next drag, started at point startEN
      */
     private void useLastMoveCommandIfPossible() {
-        DataSet dataSet = getLayerManager().getEditDataSet();
+        DataSet dataSet = this.dataSet;
         if (dataSet == null) {
             // It may happen that there is no edit layer.
             return;
@@ -869,7 +865,7 @@ public class AMATSelectAction extends MapMode implements ModifierExListener, Key
         }
         Set<Node> nodes = new HashSet<>();
         int max = Config.getPref().getInt("warn.move.maxelements", 20);
-        for (OsmPrimitive osm : getLayerManager().getEditDataSet().getSelected()) {
+        for (OsmPrimitive osm : this.dataSet.getSelected()) {
             if (osm instanceof Way) {
                 nodes.addAll(((Way) osm).getNodes());
             } else if (osm instanceof Node) {
@@ -910,7 +906,7 @@ public class AMATSelectAction extends MapMode implements ModifierExListener, Key
     }
 
     private boolean movesHiddenWay() {
-        DataSet ds = getLayerManager().getEditDataSet();
+        DataSet ds = this.dataSet;
         final Collection<OsmPrimitive> elementsToTest = new HashSet<>(ds.getSelected());
         for (Way osm : ds.getSelectedWays()) {
             elementsToTest.addAll(osm.getNodes());
@@ -932,7 +928,7 @@ public class AMATSelectAction extends MapMode implements ModifierExListener, Key
      * @param p mouse position
      */
     private void mergePrims(Point p) {
-        DataSet ds = getLayerManager().getEditDataSet();
+        DataSet ds = this.dataSet;
         Collection<Node> selNodes = ds.getSelectedNodes();
         if (selNodes.isEmpty())
             return;
@@ -985,13 +981,13 @@ public class AMATSelectAction extends MapMode implements ModifierExListener, Key
      */
     private Node findNodeToMergeTo(Point p) {
         Collection<Node> target = mv.getNearestNodes(p,
-                getLayerManager().getEditDataSet().getSelectedNodes(),
+        		this.dataSet.getSelectedNodes(),
                 mv.isSelectablePredicate);
         return target.isEmpty() ? null : target.iterator().next();
     }
 
     private void selectPrims(Collection<OsmPrimitive> prims, boolean released, boolean area) {
-        DataSet ds = getLayerManager().getActiveDataSet();
+        DataSet ds = this.dataSet;
 
         // not allowed together: do not change dataset selection, return early
         // Virtual Ways: if non-empty the cursor is above a virtual node. So don't highlight
@@ -1040,7 +1036,7 @@ public class AMATSelectAction extends MapMode implements ModifierExListener, Key
             if (mode == Mode.SELECT)
                 return tr("Release the mouse button to select the objects in the rectangle.");
             else if (mode == Mode.MOVE && (System.currentTimeMillis() - mouseDownTime >= initialMoveDelay)) {
-                final DataSet ds = getLayerManager().getEditDataSet();
+                final DataSet ds = this.dataSet;
                 final boolean canMerge = ds != null && !ds.getSelectedNodes().isEmpty();
                 final String mergeHelp = canMerge ? (' ' + tr("Ctrl to merge with nearest node.")) : "";
                 return tr("Release the mouse button to stop moving.") + mergeHelp;

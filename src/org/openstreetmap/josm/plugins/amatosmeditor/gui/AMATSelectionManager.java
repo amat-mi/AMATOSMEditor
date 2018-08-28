@@ -380,14 +380,13 @@ public class AMATSelectionManager implements MouseListener, MouseMotionListener,
             clicked = true;
         }
 
-        DataSet ds = MainApplication.getLayerManager().getActiveDataSet();
         if (clicked) {
             Point center = new Point(selectionResult.xpoints[0], selectionResult.ypoints[0]);
             OsmPrimitive osm = dataComp.getNearestNodeOrWay(center, OsmPrimitive::isSelectable, false);
             if (osm != null) {
                 selection.add(osm);
             }
-        } else if (ds != null) {
+        } else {
             // nodes
             for (Node n : dataComp.getCurrentDataSet().getNodes()) {
                 if (n.isSelectable() && selectionResult.contains(nc.getPoint2D(n))) {
