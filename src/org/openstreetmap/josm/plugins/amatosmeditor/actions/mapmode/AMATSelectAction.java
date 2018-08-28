@@ -100,7 +100,16 @@ public class AMATSelectAction extends MapMode implements ModifierExListener, Key
 		}
 		updateEnabledState();
 	}
-		
+	
+    /**
+     * Replies true if the current data layer is visible.
+     *
+     * @return true if the current data layer is visible, false otherwise
+     */
+    public boolean isLayerVisible() {
+        return layer != null && layer.isVisible();
+    }
+	
     /**
      * Select action mode.
      * @since 7543
@@ -422,7 +431,7 @@ public class AMATSelectAction extends MapMode implements ModifierExListener, Key
     public void mousePressed(MouseEvent e) {
         mouseDownButton = e.getButton();
         // return early
-        if (!mv.isActiveLayerVisible() || !(Boolean) this.getValue("active") || mouseDownButton != MouseEvent.BUTTON1)
+        if (!isLayerVisible() || !(Boolean) this.getValue("active") || mouseDownButton != MouseEvent.BUTTON1)
             return;
 
         // left-button mouse click only is processed here
@@ -509,7 +518,7 @@ public class AMATSelectAction extends MapMode implements ModifierExListener, Key
      */
     @Override
     public void mouseDragged(MouseEvent e) {
-        if (!mv.isActiveLayerVisible())
+        if (!isLayerVisible())
             return;
 
         // Swing sends random mouseDragged events when closing dialogs by double-clicking their top-left icon on Windows
@@ -600,7 +609,7 @@ public class AMATSelectAction extends MapMode implements ModifierExListener, Key
 
     @Override
     public void mouseReleased(MouseEvent e) {
-        if (!mv.isActiveLayerVisible())
+        if (!isLayerVisible())
             return;
 
         startingDraggingPos = null;
