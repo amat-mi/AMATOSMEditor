@@ -33,7 +33,7 @@ public class CopyWayAction extends BaseWayAction
 {
 	private static final long serialVersionUID = -3508864293222033185L;
 	
-	public CopyWayAction()
+	public CopyWayAction(String loc_refText)
 	{
 		super("AMAT Copy Way", 
 				"amat-logo-32", 
@@ -42,7 +42,8 @@ public class CopyWayAction extends BaseWayAction
 						"AMAT Copy Way", KeyEvent.VK_A, Shortcut.CTRL_SHIFT),
 				true,
 				null,
-				true);
+				true,
+				loc_refText);		
 	}
 
 	/**
@@ -181,9 +182,9 @@ public class CopyWayAction extends BaseWayAction
 			 
 			//If change of tag loc_ref confirmed add a command for tag change
 			if(locrefConfirmed) {
-				if(tagsToSet.containsKey("loc_ref"))
+				if(tagsToSet.containsKey(loc_refText))
 					commands.add(new ChangePropertyCommand(Collections.singletonList(osmWay), 
-							"loc_ref",tagsToSet.get("loc_ref")));
+							loc_refText,tagsToSet.get(loc_refText)));
 			}			
 		}
 		 

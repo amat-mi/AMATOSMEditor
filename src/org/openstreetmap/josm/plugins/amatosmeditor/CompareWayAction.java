@@ -11,7 +11,7 @@ public class CompareWayAction extends BaseWayAction
 {
 	private static final long serialVersionUID = -3508864293222033185L;
 	
-	public CompareWayAction()
+	public CompareWayAction(String loc_refText)
 	{
 		super("AMAT Compare Ways", 
 				"amat-logo-32", 
@@ -20,7 +20,8 @@ public class CompareWayAction extends BaseWayAction
 						"AMAT Compare Ways", KeyEvent.VK_Q, Shortcut.CTRL_SHIFT),
 				true,
 				null,
-				true);
+				true,
+				loc_refText);
 	}
 
 	@Override

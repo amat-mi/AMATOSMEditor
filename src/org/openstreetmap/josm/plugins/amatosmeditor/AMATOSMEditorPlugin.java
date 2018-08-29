@@ -39,9 +39,9 @@ public class AMATOSMEditorPlugin extends Plugin implements LayerChangeListener, 
 		downloadAction = new AMATDownloadAction(Main.pref.get("amatosm-server.url", ""));
 		MainMenu mainMenu = MainApplication.getMenu();
 		MainMenu.add(mainMenu.dataMenu, downloadAction, false,0);      
-		copyAction = new CopyWayAction();
+		copyAction = new CopyWayAction(Main.pref.get("loc_ref.text", ""));
 		MainMenu.add(mainMenu.dataMenu, copyAction, false,0);      
-		compareAction = new CompareWayAction();
+		compareAction = new CompareWayAction(Main.pref.get("loc_ref.text", ""));
 		MainMenu.add(mainMenu.dataMenu, compareAction, false,0);
 		
 		Config.getPref().addPreferenceChangeListener(new PreferenceChangedListener() {			
@@ -49,6 +49,11 @@ public class AMATOSMEditorPlugin extends Plugin implements LayerChangeListener, 
 			public void preferenceChanged(PreferenceChangeEvent e) {
 				if("amatosm-server.url".equals(e.getKey()))
 					downloadAction.setAmatosmUrl(Main.pref.get("amatosm-server.url", ""));
+				
+				if("loc_ref.text".equals(e.getKey())) {
+					copyAction.setLoc_refText(Main.pref.get("loc_ref.text", ""));
+					compareAction.setLoc_refText(Main.pref.get("loc_ref.text", ""));
+				}
 			}
 		});
 	}

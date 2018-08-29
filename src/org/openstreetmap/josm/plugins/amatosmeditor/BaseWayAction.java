@@ -33,6 +33,7 @@ public abstract class BaseWayAction extends JosmAction
 	
 	protected DataSet srcDataSet;
 	protected DataSet dstDataSet;
+	protected String loc_refText;
 
 	/**
 	 * @param name
@@ -45,11 +46,28 @@ public abstract class BaseWayAction extends JosmAction
 	 */
 	public BaseWayAction(String name, String iconName, String tooltip,
 			Shortcut shortcut, boolean registerInToolbar, String toolbarId,
-			boolean installAdapters) {
+			boolean installAdapters,String loc_refText) {
 		super(name, iconName, tooltip, shortcut, registerInToolbar, toolbarId,
 				installAdapters);
 		
+		this.loc_refText = loc_refText;
+				
 		updateEnabledState();
+	}
+	
+	/**
+	 * @return the loc_refText
+	 */
+	public String getLoc_refText() {
+		return loc_refText;
+	}
+
+	/**
+	 * @param loc_refText the loc_refText to set
+	 */
+	public void setLoc_refText(String loc_refText) {
+		this.loc_refText = loc_refText;
+		updateEnabledState();				//see if we're enabled	
 	}
 
 	/**
