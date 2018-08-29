@@ -13,6 +13,14 @@ way[AMAT]
 }
 
 /*
+  Archi del grafo AMAT anche o solo ciclabili
+*/
+way[AMAT][loc_ref:cycleway]
+{  
+	dashes: 5, 5
+}
+
+/*
   Archi del grafo AMAT esclusivamente tramviari
 */
 way[AMAT:tram:only?]
