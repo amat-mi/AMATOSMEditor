@@ -36,12 +36,18 @@ from "josm/dist/" to "~/.josm/plugins/" (to "C:\Users\<username>\AppData\Roaming
 than to the "Configure available plugins" page (the fourth one from the top)
 and activate the "AMATOSMEditor" plugin.
  
-* To set the URL of the AMAT OSM Server, go to "Edit / Preferences"
-than to the "Connection settings for the AMAT OSM Server" page (the last but one from the bottom)
-and set the URL into the text box like this:
+* Configure the plugin by going to "Edit / Preferences"
+than to the "Settings for the AMATOSMEditor plugin." page (the last but one from the bottom).
+Set the URL of the AMAT OSM Server into the text box like this:
     http://127.0.0.1:8000/osm/api
-    
+
 without any trailing slashes.
+
+Set the actual text to be used for the "loc_ref" tag into the text box like one of these:
+    loc_ref
+    loc_ref:cycleway
+
+If left blank, literal "loc_ref" will be used.
 
 * To use the plugin, load any OSM data from any source (ie: OSM server, from disk, using Tasking Manager, etc.)
 
@@ -73,3 +79,5 @@ where you can decide what to do:
     LocRef =>      copy tag "loc_ref" only
     Tags =>        copy all tags
     Cancel =>      do not copy anything
+
+Note that the actual text used for the "loc_ref" tag is the one set inside the Preferences dialog.
