@@ -14,11 +14,11 @@ public class ComparePrimitiveAction extends BasePrimitiveAction
 	
 	public ComparePrimitiveAction(String loc_refText)
 	{
-		super("AMAT Compare objects", 
+		super("AMAT Compare object", 
 				"amat-logo-32", 
 				"Compare selected OSM Way/Node with AMAT Way/Node", 
-				Shortcut.registerShortcut("amatosmeditor:compareobjects", 
-						"AMAT Compare Ways/Nodes", KeyEvent.VK_Q, Shortcut.CTRL_SHIFT),
+				Shortcut.registerShortcut("amatosmeditor:compareobject", 
+						"AMAT Compare Way/Node", KeyEvent.VK_Q, Shortcut.CTRL_SHIFT),
 				true,
 				null,
 				true,

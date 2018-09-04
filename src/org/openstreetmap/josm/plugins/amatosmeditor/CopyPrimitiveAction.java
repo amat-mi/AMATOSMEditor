@@ -35,10 +35,10 @@ public class CopyPrimitiveAction extends BasePrimitiveAction
 	
 	public CopyPrimitiveAction(String loc_refText)
 	{
-		super("AMAT Copy Way", 
-				"amat-logo-32", 
+		super("AMAT Copy object", 
+				"amat-logo-32",
 				"Copy AMAT Way/Node data into selected OSM Way/Node", 
-				Shortcut.registerShortcut("amatosmeditor:copyobjects", 
+				Shortcut.registerShortcut("amatosmeditor:copyobject", 
 						"AMAT Copy Way/Node", KeyEvent.VK_A, Shortcut.CTRL_SHIFT),
 				true,
 				null,
