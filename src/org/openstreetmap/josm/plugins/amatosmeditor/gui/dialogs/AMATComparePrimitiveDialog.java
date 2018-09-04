@@ -68,6 +68,13 @@ public class AMATComparePrimitiveDialog extends ExtendedDialog {
     public static final int VALUE_TAGS = 5;
     public static final int VALUE_CANCELLED = VALUE_TAGS + 1; 
 
+    protected String getTypename(OsmPrimitive o) {
+    	return o instanceof Node ? "Node" : 
+    		o instanceof Way ? "Way" : 
+        		o instanceof Relation ? "Relation" :
+        			"Primitive"; 
+    }
+    
     public AMATComparePrimitiveDialog(OsmPrimitive primitive1, OsmPrimitive primitive2,
     		Layer layer,boolean askConfirmation) {
     	this(primitive1,primitive2,null,null,null,layer,askConfirmation);
@@ -80,8 +87,8 @@ public class AMATComparePrimitiveDialog extends ExtendedDialog {
     		Layer layer,boolean askConfirmation) {
         super(Main.parent, 
         		askConfirmation ?
-        				tr("Compare OSM and AMAT ways and confirm updating") :
-        				tr("Compare OSM and AMAT ways"),
+        				tr("Compare OSM and AMAT objects and confirm updating") :
+        				tr("Compare OSM and AMAT objects"),
         		askConfirmation ? 
         				new String[] { 
         					tr("All"), 
@@ -141,8 +148,8 @@ public class AMATComparePrimitiveDialog extends ExtendedDialog {
     
     protected Component buildDataPanel() {
         JPanel p = new JPanel(new GridBagLayout());
-        p.add(new JLabel("OSM Way"), GBC.std(0,0).weight(0.1,1.0).fill(GBC.NONE));
-        p.add(new JLabel("AMAT Way"), GBC.std(1,0).weight(0,1.0).fill(GBC.NONE));
+        p.add(new JLabel("OSM " + getTypename(primitive1)), GBC.std(0,0).weight(0.1,1.0).fill(GBC.NONE));
+        p.add(new JLabel("AMAT " + getTypename(primitive2)), GBC.std(1,0).weight(0,1.0).fill(GBC.NONE));
         p.add(buildDataTextArea(primitive1), GBC.std(0,1).weight(0.1,1.0).fill(GBC.BOTH));
         p.add(buildDataTextArea(primitive2), GBC.std(1,1).weight(0,1.0).fill(GBC.BOTH));
         JScrollPane scroll = new JScrollPane(p);

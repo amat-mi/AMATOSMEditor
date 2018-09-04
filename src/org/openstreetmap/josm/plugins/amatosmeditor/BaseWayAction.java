@@ -213,6 +213,96 @@ public abstract class BaseWayAction extends JosmAction
 		
 		return amatWay;
 	}
+	
+	/**
+	 * Search for Nodes that are nearby the specified one.
+	 * Try with a bigger buffer around the specified Node first, and try with smaller ones 
+	 * only if more than one Node found nearby.
+	 * Give up as soon as no Node is found inside the buffer.
+	 * @param aNode
+	 * @return A Set of all the Nodes found nearby the specified one.
+	 */
+	protected Set<Node> findNodes(Node aNode) {		
+		double BUFFER_SIZE = 0.00005;
+		while(BUFFER_SIZE >= 0.000008) {
+			BBox bbox = aNode.getBBox();
+			bbox.addPrimitive(aNode, BUFFER_SIZE);
+			List<Node> nodes = srcDataSet.searchNodes(bbox);
+			if(nodes.isEmpty())			//if no Node found
+				return null;				//no point trying a smaller buffer
+
+			Set<Node> foundNodes = new LinkedHashSet<Node>();
+			for (Node node : nodes)			
+				foundNodes.add(node);			//add Node to set of found Nodes
+			
+			if(foundNodes.size() == 1)			//if exactly one first/last Node found
+				return foundNodes;					//return it
+			
+			BUFFER_SIZE *= 0.8;					//try with a smaller box size
+		}		
+		
+		return null;
+	}
+	
+	/**
+	 * Check if the two specified Nodes are "too far away" from one another.
+	 * The test is made by comparing the distances between them.
+	 * @param node1 The first Node to check
+	 * @param node2 The second Node to check
+	 * @return true if the two specified Nodes are indeed too far away
+	 */
+	protected boolean tooFarAway(Node node1,Node node2,double maxDistance) {
+		return node1.getCoor().greatCircleDistance(node2.getCoor()) > maxDistance;
+	}
+	
+	protected Node findOSMNode() {
+		if(!isEnabled())
+			return null;
+
+		Collection<Node> selectedNodes = dstDataSet.getSelectedNodes();
+		return selectedNodes.size() == 1 ? selectedNodes.iterator().next() : null;
+	}
+	
+	protected Node findAMATNode() {
+		if(!isEnabled())
+			return null;
+
+		Node osmNode = findOSMNode();
+		if( osmNode == null)
+			return null;
+		
+		Node amatNode = null;					//by default no single AMAT Node found 
+		
+		//If a single AMAT Node is selected, use that, otherwise search for a Node nearby
+		Collection<Node> selectedNodes = srcDataSet.getSelectedNodes();
+		if(selectedNodes.size() == 1)
+			amatNode = selectedNodes.iterator().next();
+		else {
+			Set<Node> nodes = findNodes(osmNode);
+			if(nodes == null) {
+				JOptionPane.showMessageDialog(Main.parent, tr("No AMAT node found for OSM node"));
+				return null;
+			}
+			
+			if(nodes.size() != 1) {
+				JOptionPane.showMessageDialog(Main.parent, tr("Multiple AMAT nodes found for OSM node"));
+				return null;
+			}
+
+			amatNode = nodes.iterator().next(); 
+		}
+		
+		if(tooFarAway(osmNode, amatNode, 100)) {
+			if(JOptionPane.showConfirmDialog(
+					Main.parent, 
+					new String[] {tr("OSM and AMAT nodes are very far away"),tr("Continue?")},
+					tr("Warning"),
+					JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE) != JOptionPane.OK_OPTION)
+				return null;			
+		}
+		
+		return amatNode;
+	}
 		
 	@Override
 	protected void updateEnabledState() {
