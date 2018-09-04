@@ -29,11 +29,11 @@ import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.Geometry;
 import org.openstreetmap.josm.tools.Shortcut;
 
-public class CopyWayAction extends BaseWayAction
+public class CopyPrimitiveAction extends BasePrimitiveAction
 {
 	private static final long serialVersionUID = -3508864293222033185L;
 	
-	public CopyWayAction(String loc_refText)
+	public CopyPrimitiveAction(String loc_refText)
 	{
 		super("AMAT Copy Way", 
 				"amat-logo-32", 

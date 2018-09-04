@@ -27,7 +27,7 @@ import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.tools.Shortcut;
 
-public abstract class BaseWayAction extends JosmAction
+public abstract class BasePrimitiveAction extends JosmAction
 {
 	private static final long serialVersionUID = -3508864293222033185L;
 	
@@ -44,7 +44,7 @@ public abstract class BaseWayAction extends JosmAction
 	 * @param toolbarId
 	 * @param installAdapters
 	 */
-	public BaseWayAction(String name, String iconName, String tooltip,
+	public BasePrimitiveAction(String name, String iconName, String tooltip,
 			Shortcut shortcut, boolean registerInToolbar, String toolbarId,
 			boolean installAdapters,String loc_refText) {
 		super(name, iconName, tooltip, shortcut, registerInToolbar, toolbarId,

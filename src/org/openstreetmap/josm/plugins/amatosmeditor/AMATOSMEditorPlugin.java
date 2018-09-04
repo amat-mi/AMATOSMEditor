@@ -25,8 +25,8 @@ import org.openstreetmap.josm.spi.preferences.PreferenceChangedListener;
 
 public class AMATOSMEditorPlugin extends Plugin implements LayerChangeListener, ActiveLayerChangeListener {
 	AMATDownloadAction downloadAction;
-	CopyWayAction copyAction;
-	CompareWayAction compareAction;
+	CopyPrimitiveAction copyAction;
+	ComparePrimitiveAction compareAction;
 	AMATSelectAction selectAction;
 	
 	private MapFrame mapFrame;
@@ -39,9 +39,9 @@ public class AMATOSMEditorPlugin extends Plugin implements LayerChangeListener, 
 		downloadAction = new AMATDownloadAction(Main.pref.get("amatosm-server.url", ""));
 		MainMenu mainMenu = MainApplication.getMenu();
 		MainMenu.add(mainMenu.dataMenu, downloadAction, false,0);      
-		copyAction = new CopyWayAction(Main.pref.get("loc_ref.text", ""));
+		copyAction = new CopyPrimitiveAction(Main.pref.get("loc_ref.text", ""));
 		MainMenu.add(mainMenu.dataMenu, copyAction, false,0);      
-		compareAction = new CompareWayAction(Main.pref.get("loc_ref.text", ""));
+		compareAction = new ComparePrimitiveAction(Main.pref.get("loc_ref.text", ""));
 		MainMenu.add(mainMenu.dataMenu, compareAction, false,0);
 		
 		Config.getPref().addPreferenceChangeListener(new PreferenceChangedListener() {			

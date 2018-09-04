@@ -8,11 +8,11 @@ import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.plugins.amatosmeditor.gui.dialogs.AMATComparePrimitiveDialog;
 import org.openstreetmap.josm.tools.Shortcut;
 
-public class CompareWayAction extends BaseWayAction
+public class ComparePrimitiveAction extends BasePrimitiveAction
 {
 	private static final long serialVersionUID = -3508864293222033185L;
 	
-	public CompareWayAction(String loc_refText)
+	public ComparePrimitiveAction(String loc_refText)
 	{
 		super("AMAT Compare objects", 
 				"amat-logo-32", 
