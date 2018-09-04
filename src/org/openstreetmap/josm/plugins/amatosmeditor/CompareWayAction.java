@@ -16,7 +16,7 @@ public class CompareWayAction extends BaseWayAction
 	{
 		super("AMAT Compare objects", 
 				"amat-logo-32", 
-				"Compare selected OSM Way/Nodes with AMAT Way/Nodes", 
+				"Compare selected OSM Way/Node with AMAT Way/Node", 
 				Shortcut.registerShortcut("amatosmeditor:compareobjects", 
 						"AMAT Compare Ways/Nodes", KeyEvent.VK_Q, Shortcut.CTRL_SHIFT),
 				true,
